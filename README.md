@@ -10,6 +10,7 @@ Every repo has some steps to help further evaluate or study.
   |Fixed-16(n2m32)| 106(48%)  | 100(72%)  | 27495(52%) | 30118(28%) |	130MHz |
   
 2.Performance:
+
 |                          |        |
 |  -----                   | -----  |
 |CNN models	               |YOLO v2 |
