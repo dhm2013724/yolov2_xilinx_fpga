@@ -23,6 +23,17 @@ Every repo has some steps to help further evaluate or study.
 Result as:  
 ![image1](https://github.com/dhm2013724/yolov2_xilinx_fpga/blob/master/pynq/result.jpg)
 
+The current design mainly refers to the following papers:  
+[1] Maximizing CNN Accelerator Efficiency Through Resource Partitioning
+[2] PLACID: A Platform for FPGA-Based Accelerator Creation for DCNNs
+[3] Going Deeper with Embedded FPGA Platform for Convolutional Neural Network
+[4] DianNao A Small-Footprint High-Throughput Accelerator for Ubiquitous Machine-Learning
+[5] An Automatic RTL Compiler for High-Throughput FPGA Implementation of Diverse Deep Convolutional Neural Networks
+[6] A Dynamic Multi-precision Fixed-Point Data Quantization Strategy for Convolutional Neural Network
+[7] Caffeine: Towards Uniformed Representation and Acceleration for Deep Convolutional Neural Networks
+[8] Optimizing FPGA-based Accelerator Design for Deep Convolutional Neural Networks
+
+
   
   
 
