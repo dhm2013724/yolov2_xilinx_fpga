@@ -5,7 +5,7 @@ Follow below step:
    add constraint PYNQ-Z1_C.xdc
 3. create clock_wizard, set output clock 130MHz,set reset type active low
 4. connect ip follow the picture vivado_bd.jpg
-![image](yolov2_xilinx_fpga/vivado/vivado_bd.jpg)
+![image](https://github.com/dhm2013724/yolov2_xilinx_fpga/blob/master/vivado/vivado_bd.jpg)
 5. generate bitstream
 6. export block_design
 7. get the block_design design_1.tcl and bitstream design_1_wrapper.bit for pynq (existed in generated_demo)
