@@ -20,6 +20,9 @@ Every repo has some steps to help further evaluate or study.
 |Performance(GOP/s)		      |11.39   |
 |Power Efficiency(GOP/s/W)	|	4.20   |
 
+Result as:
+![image1](https://github.com/dhm2013724/yolov2_xilinx_fpga/blob/master/pynq/result.jpg)
+
   
   
 
