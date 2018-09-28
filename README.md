@@ -6,7 +6,7 @@ Every repo has some steps to help further evaluate or study.
 Current implementation:  
 
   表头  | 表头
-  --- | ---
+  - | -
  单元格内容  | 单元格内容
  单元格内容l  | 单元格内容
  
