@@ -10,6 +10,7 @@ Current implementation:
   |Fixed-16(n2m32)| 106(48%)  | 100(72%)  | 27495(52%) | 30118(28%) |	130MHz |
   
 
+|  -----                   | -----  |
 |CNN models	               |YOLO v2 |
 |Board                     | PYNQ   |                
 |Clock(MHz)		              |    130 |
