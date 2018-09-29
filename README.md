@@ -30,23 +30,22 @@ Experiments show that floating point addition in HLS requires three DSP resource
 
 According to the current design, DSP and BRAM are more expensive. The cost of DSP can be further reduced (there are many bit-width redundant multiplications), and the BRAM cost can be reduced. (As Shen [1] said, BRAM allocates an exponential size of 2 in HLS. Actually, many BRAMs are redundant. ).  
 The performance comparison in the two cases is shown in the following table:  
-
   
 | Performance              |        |
 |  -----                   | -----  |
 |CNN models	               |YOLO v2 |
 |Board                     | PYNQ   |                
-|Clock(MHz)		              |    130 |
-|Precision		               |Fixed-16|
-|Power (W)		               |   2.71 |
-|Operations (GOP)		        |29.47   |
-|Performance(GOP/s)		      |11.39   |
-|Power Efficiency(GOP/s/W)	|	4.20   |
+|Clock(MHz)		             |    130 |
+|Precision		             |Fixed-16|
+|Power (W)		             |   2.71 |
+|Operations (GOP)		       |29.47   |
+|Performance(GOP/s)		     |11.39   |
+|Power Efficiency(GOP/s/W) |	4.20  |
 
-Result as:  
+# Result  
 ![image1](https://github.com/dhm2013724/yolov2_xilinx_fpga/blob/master/pynq/result.jpg)
 
-The current design mainly refers to the following papers:  
+# References:  
 [1] Maximizing CNN Accelerator Efficiency Through Resource Partitioning  
 [2] PLACID: A Platform for FPGA-Based Accelerator Creation for DCNNs  
 [3] Going Deeper with Embedded FPGA Platform for Convolutional Neural Network  
