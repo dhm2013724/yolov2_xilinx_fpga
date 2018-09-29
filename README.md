@@ -3,7 +3,7 @@ A demo for accelerating YOLOv2 in xilinx's fpga PYNQ
 You can follow the step: HLS -> VIVADO -> PYNQ or just jump to PYNQ
 Every repo has some steps to help further evaluate or study.  
 
-1. Design and Optimization of YOLOv2 Accelerator Based on FPGA  
+# Design and Optimization of YOLOv2 Accelerator Based on FPGA  
 According to the analysis of the YOLOv2 network, most layers are serially processed, except for the routing layer. The routing layer can be implemented by setting a specific address in advance.   
 From an accelerator perspective, the work required is to interact with memory in order (reading memory data, processing data, and then writing back memory data). Since the amount of data input and output is very large, loop tiling technique is always applied to reuse data and reduce memory access times, which tiles the convolution loop R, C, M, N to Tr, Tc, Tm ,Tn[8].  
 The overall architecture of the accelerator is shown below:  
@@ -12,17 +12,16 @@ The overall architecture of the accelerator is shown below:
 Similar to [4,5,8], the accelerator has two AXI4 master interfaces and one AXI4-Lite slave interface. AXI-Lite slave interface is responsible for reading and writing control, data and status register sets. The input feature maps and weights are read concurrently by two master interfaces, and the output feature maps are written back simultaneously through write channel.   
 The Data Scatter module is designed to generate the corresponding write address and distribute the data read from the DRAM to the on-chip buffers. The Data Gather module is designed to generate the DRAM write-back address and write the data in the output buffer back to the DRAM. The other red modules are responsible for the processing of the convolutional layer (Conv and Leaky ReLU), the maximum pooling layer (Pool) and the reorg layer (Reorg).  
 
-1.1 Weight Arrangement   
+# (1) Weight Arrangement   
 The effective FPGA bandwidth goes up with the increase of burst length and finally flattens out above some burst length threshold[7]. The data tiling technique usually results in a discontinuous DRAM access for the row-major data layout in DRAM. To reduce the number of memory accesses and increase the effective memory bandwidth, we arrange the kernel weights for an entire tile to a continuous block to ensure a high utilization of the bandwidth of external memory [3].  
 
-1.2 Parallel Convolution Engine  
+# (2) Parallel Convolution Engine  
 The acceleration strategy of convolutional layer is similar to [5][6], which utilizes input and output parallelism to accelerate the computation. By designing multiple parallel multiplication units and add trees to achieve input parallelism (Tn parallelism) and output parallelism (Tm parallelism) in convolution calculation. The Tm*Tn multiplication units are calculated in parallel. The add trees of Log2 (Tn) depth are accumulated by pipeline, and generate the partial sums.  
 
-1.3 Ping-Pong operation  
+# (3) Ping-Pong operation  
 Similar to [8], the design implements ping-pong buffers to overlap the delay of reading input feature maps and weights, writing output feature maps and calculation, which greatly improves the dynamic utilization of the computing engines.  
 
-2. Evaulate
-
+# Evaulate  
 Experiments show that floating point addition in HLS requires three DSP resources, floating point multiplication requires two DSPs; fixed point 16-bit multiplication requires one DSP, and fixed-point 16-bit addition can be implemented only using LUT. After placing and routing, resource consumptions of fixed-16 (Tn=2, Tm=32, Tr=26, Tc=26) are shown as follows:     
 
   |  Resource     |  DSP      | BRAM      | LUT        |  FF        | Freq   |
