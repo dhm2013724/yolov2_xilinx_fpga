@@ -8,7 +8,6 @@ Continue with the step of creating yolov2.tcl and yolov2.bit
 #image path
 ORIG_IMG_PATH = 'dog.jpg'
 ```
-![image0](https://github.com/dhm2013724/yolov2_xilinx_fpga/blob/master/pynq/img_path.png)
 4. Run all  
 Results as:  
 ![image1](https://github.com/dhm2013724/yolov2_xilinx_fpga/blob/master/pynq/result.jpg)
