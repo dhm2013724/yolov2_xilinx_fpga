@@ -2,6 +2,7 @@
 A demo for accelerating YOLOv2 in xilinx's fpga PYNQ  
 You can follow the step: HLS -> VIVADO -> PYNQ or just jump to PYNQ
 Every repo has some steps to help further evaluate or study.  
+2018/10/20: Nearly,we will use new architecture to optimize this design.
 
 # Design and Optimization of YOLOv2 Accelerator Based on FPGA  
 According to the analysis of the YOLOv2 network, most layers are serially processed, except for the routing layer. The routing layer can be implemented by setting a specific address in advance.   
