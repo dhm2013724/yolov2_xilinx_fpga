@@ -1,6 +1,7 @@
 
-#include <string.h>
-#include <ap_int.h>
+#include "cnn.h"
+// #include <string.h>
+// #include <ap_int.h>
 
 ////////////////////////////////////////////2 ok start 100MHZ ???
 #define MAX(x,y) ((x)>(y)?(x):(y))
