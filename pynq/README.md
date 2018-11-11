@@ -14,5 +14,5 @@ overlay = Overlay("yolov2.bit")
 ```
 5. Run all  
 # Results as:  
-![image1](https://github.com/dhm2013724/yolov2_xilinx_fpga/blob/master/pynq/result-1.jpg)
+![image1](https://github.com/dhm2013724/yolov2_xilinx_fpga/blob/master/pynq/result.jpg)
 
