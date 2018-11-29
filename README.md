@@ -2,7 +2,7 @@
 A demo for accelerating YOLOv2 in xilinx's fpga PYNQ  
 You can follow the step: HLS -> VIVADO -> PYNQ or just jump to PYNQ
 Every repo has some steps to help further evaluate or study.  
-2018/10/20: Nearly,we will use new architecture to optimize this design.
+2018/10/20: Nearly,we will use new architecture to optimize this design.  
 2018/11/29: The idea of new architecture has stopped, and we will further optimize this design until it can process nearly 1 FPS in PYNQ.(Actually, we have optimized our design, and tested YOLOv2 in Zedboard with only 1.27s in 150MHz, but the part of python in PYNQ still has some problems.)
 
 # Design and Optimization of YOLOv2 Accelerator Based on FPGA  
