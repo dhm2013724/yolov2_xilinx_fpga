@@ -5,8 +5,9 @@ Every repo has some steps to help further evaluate or study.
 2018/10/20: Nearly,we will use new architecture to optimize this design.  
 2018/11/29: The idea of new architecture has stopped, and we will further optimize this design until it can process nearly 1 FPS in PYNQ.(Actually, we have optimized our design, and tested YOLOv2 in Zedboard with only 1.27s in 150MHz, but the part of python in PYNQ still has some problems.)  
 2019/01/09 I have reached my goal: 1FPS in Zedboard for YOLOv2 and 4FPS for YOLOv2-Tiny. I'm now meeting an deadline, so the update will delay to Jan 17.  
+2019/02/26 This branch is for new design in 150MHz clock. I have added Multi-Channel Data Transmission, and further optimized the input/output module. HLS C-simulation will be updated lately, you can try this design first. Maybe there are some problems in python script, because I am not very familiar with python. In Zedboard it can get 0.9775s one frame. Other related works will be updated in another project(below URL).
 I'm writing an introduction to show how to map YOLOv2 from Darknet to FPGA, the link is  
-[https://github.com/dhm2013724/Xilinx_FPGA_HLS-Mapping-Neural-Network-to-Hardware](https://github.com/dhm2013724/Xilinx_FPGA_HLS-Mapping-Neural-Network-to-Hardware). But only Chinese edition is available now. Although I'm meeting the deadline, I will keep updating it.
+[https://github.com/dhm2013724/Xilinx_FPGA_HLS-Mapping-Neural-Network-to-Hardware](https://github.com/dhm2013724/Xilinx_FPGA_HLS-Mapping-Neural-Network-to-Hardware). 
 
 # Design and Optimization of YOLOv2 Accelerator Based on FPGA  
 According to the analysis of the YOLOv2 network, most layers are serially processed, except for the routing layer. The routing layer can be implemented by setting a specific address in advance.   
@@ -40,11 +41,11 @@ The performance comparison in the two cases is shown in the following table:
 |  -----                   | -----  |
 |CNN models	               |YOLO v2 |
 |Board                     | PYNQ   |                
-|Clock(MHz)		             |    130 |
+|Clock(MHz)		             |    150 |
 |Precision		             |Fixed-16|
-|Power (W)		             |   2.71 |
+|Power (W)		             |   2.98 |
 |Operations (GOP)		       |29.47   |
-|Performance(GOP/s)		     |11.39   |
+|Performance(GOP/s)		     |25.98   |
 |Power Efficiency(GOP/s/W) |	4.20  |
 
 # Result  
