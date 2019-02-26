@@ -1,5 +1,5 @@
 This repo is about PYNQ.  
-Weight and bias are available in [HERE(BaiDu CloudDisk) URL](https://pan.baidu.com/s/1v1U78fdYJ0p8XWmWXA3P0Q)  
+Weight and bias are available in [HERE(BaiDu CloudDisk) URL](https://pan.baidu.com/s/1pconJnUbu52KN4jd-1EgKg)  
 Continue with the step of creating yolov2.tcl and yolov2.bit
 1. Copy yolov2.tcl and yolov2.bit to this repo
 2. Open yolov2.ipynb in jupyter notebook
