@@ -6,7 +6,7 @@ Every repo has some steps to help further evaluate or study.
 2018/11/29: The idea of new architecture has stopped, and we will further optimize this design until it can process nearly 1 FPS in PYNQ.(Actually, we have optimized our design, and tested YOLOv2 in Zedboard with only 1.27s in 150MHz, but the part of python in PYNQ still has some problems.)  
 2019/01/09 I have reached my goal: 1FPS in Zedboard for YOLOv2 and 4FPS for YOLOv2-Tiny. I'm now meeting an deadline, so the update will delay to Jan 17.  
 I'm writing an introduction to show how to map YOLOv2 from Darknet to FPGA, the link is  
-[https://github.com/dhm2013724/Xilinx_FPGA_HLS-Mapping-Neural-Network-to-Hardware](https://github.com/dhm2013724/Xilinx_FPGA_HLS-Mapping-Neural-Network-to-Hardware). But only Chinese edition is available now. Although I'm meeting the deadline, I will keep updating it.
+[https://github.com/dhm2013724/Xilinx_FPGA_HLS-Mapping-Neural-Network-to-Hardware](https://github.com/dhm2013724/Xilinx_FPGA_HLS-Mapping-Neural-Network-to-Hardware). 
 
 # Design and Optimization of YOLOv2 Accelerator Based on FPGA  
 According to the analysis of the YOLOv2 network, most layers are serially processed, except for the routing layer. The routing layer can be implemented by setting a specific address in advance.   
