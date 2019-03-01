@@ -49,7 +49,7 @@ The performance comparison in the two cases is shown in the following table:
 |Power Efficiency(GOP/s/W) |	4.20  |
 
 # Result  
-![image1](https://github.com/dhm2013724/yolov2_xilinx_fpga/blob/150MHzTn4Tm32Cin4Cout2/pynq/result2.jpg)
+![image1](https://github.com/dhm2013724/yolov2_xilinx_fpga/blob/150MHzTn4Tm32Tr26Tc26Cin4Cout2/pynq/result2.jpg)
 
 # References:  
 [1] Maximizing CNN Accelerator Efficiency Through Resource Partitioning  
