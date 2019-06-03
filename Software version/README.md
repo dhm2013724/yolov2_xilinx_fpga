@@ -3,7 +3,9 @@
  In addition, you can also change the hardware parameters to design different accelerators.
  
  1.You should find the code with float-32 precison, change the hardware parameters to generate different weights and biases after weight-reorganization.
+ 
  2.Find the Macro definition about QUANTI in main.cpp, Undo annotation macro definition and run it to generate fixed-16 weight and biases files.
+ 
  3.Annotation macro definition QUANTI, find the code with fixed-16 precison in yolov2.h. Undo annotation and change the hardware parameters to the same that you did. Be careful that if you change Tn, you should change the realted code in compute module and input module.
  
 Two files about weight and bias are available [YOLOv2 Float-32 Weight & BIAS in BaiDu CloudDisk](https://pan.baidu.com/s/10XW-u79hx_e-8a7kj9EvAA) Extraction code：f501. 
