@@ -5,4 +5,5 @@ First, make sure the marco define __REORG_GEN__ in yolov2.h is used, and annotat
 
 Second(__Optional__), if you want to test the reorganized weight, you can annotate the marco define __REORG_GEN__ and anti-annotate marco define __REORG_TEST__ in yolov2.h. Run this code to compare the output with First step.
 
+Third, if you want to quantize the wieght and bias, you should anti-annotate marco define __QUANTI__ in main.cpp and run this code. This step will generate four files: "biasv2_comb_ap16.bin",  "biasv2_comb_ap16_maxQ_23.bin", "weightsv2_comb_reorg_ap16.bin", and "weightsv2_comb_reorg_ap16_maxQ_23.bin". Two bin files(* _ ap16.bin) are quantized weight and bias. The other two bin files(* _ maxQ_23.bin) are fraction bit for weight and bias in 23 convolutional layers.
 
