@@ -1,13 +1,23 @@
-# yolov2_xilinx_fpga
-A demo for accelerating YOLOv2 in xilinx's fpga PYNQ  
-You can follow the step: HLS -> VIVADO -> PYNQ or just jump to PYNQ
-Every repo has some steps to help further evaluate or study.  
-2018/10/20: Nearly,we will use new architecture to optimize this design.  
-2018/11/29: The idea of new architecture has stopped, and we will further optimize this design until it can process nearly 1 FPS in PYNQ.(Actually, we have optimized our design, and tested YOLOv2 in Zedboard with only 1.27s in 150MHz, but the part of python in PYNQ still has some problems.)  
-2019/01/09 I have reached my goal: 1FPS in Zedboard for YOLOv2 and 4FPS for YOLOv2-Tiny. I'm now meeting an deadline, so the update will delay to Jan 17.  
-2019/02/26 This branch is for new design in 150MHz clock. I have added Multi-Channel Data Transmission, and further optimized the input/output module. HLS C-simulation will be updated lately, you can try this design first. Maybe there are some problems in python script, because I am not very familiar with python. In Zedboard it can get 0.9775s one frame. Other related works will be updated in another project(below URL).
-I'm writing an introduction to show how to map YOLOv2 from Darknet to FPGA, the link is  
-[https://github.com/dhm2013724/Xilinx_FPGA_HLS-Mapping-Neural-Network-to-Hardware](https://github.com/dhm2013724/Xilinx_FPGA_HLS-Mapping-Neural-Network-to-Hardware). 
+## YOLOv2 Accelerator in Xilinx's Zynq-7000 Soc(PYNQ-z2 and Zedboard)
+A Demo for accelerating YOLOv2 in Xilinx's FPGA PYNQ-z2 and Zedboard
+For PYNQ-z2 and Zedboard, in addition to final Linux application( For PYNQ, turn to PYNQ directory; For Zedboard, turn to SDK and PetaLinux), other steps are almost same:
+# (1)Software Simulation
+Firstly, you should download the darknet source from [https://github.com/pjreddie/darknet](https://github.com/pjreddie/darknet) and yolov2.weights from [https://pjreddie.com/media/files/yolov2-voc.weights](https://pjreddie.com/media/files/yolov2-voc.weights). 
+
+Secondly, modify the darknet's weight load function to get the weights and biases that we want(Here, considering that batcn normalizaton can be combined with weight and bias).
+
+Thirdly, considering that multiple and add operations that implemented in hardware logic will cost too high resources in FPGA[3][6], we should use lower percision operation instead of float-32. Here, I just follow [3] and [6] to quantize the input/output feature maps, weights and biases to dynamic fixed-16. And use fixed-16 operation to replace multiple, add and relu operations in float-32 percision. 
+
+# (2)HLS Accelerator and Simulation
+future
+# (3)Vivado Block Design
+future
+# (4)Vivado SDK for Zedboard
+future
+# (5)PetaLinux
+future
+Every directory has some steps to help further implement or study this accelerator.
+
 
 # Design and Optimization of YOLOv2 Accelerator Based on FPGA  
 According to the analysis of the YOLOv2 network, most layers are serially processed, except for the routing layer. The routing layer can be implemented by setting a specific address in advance.   
@@ -37,16 +47,16 @@ Experiments show that floating point addition in HLS requires three DSP resource
 According to the current design, DSP and BRAM are more expensive. The cost of DSP can be further reduced (there are many bit-width redundant multiplications), and the BRAM cost can be reduced. (As Shen [1] said, BRAM allocates an exponential size of 2 in HLS. Actually, many BRAMs are redundant. ).  
 The performance comparison in the two cases is shown in the following table:  
   
-| Performance              |        |
-|  -----                   | -----  |
-|CNN models	               |YOLO v2 |
-|Board                     | PYNQ   |                
-|Clock(MHz)		             |    150 |
-|Precision		             |Fixed-16|
-|Power (W)		             |   2.98 |
-|Operations (GOP)		       |29.47   |
-|Performance(GOP/s)		     |25.98   |
-|Power Efficiency(GOP/s/W) |	4.20  |
+| Performance              |        |        |
+|  -----                   | -----  | -----  |
+|CNN models	               |YOLO v2 |YOLO v2 |
+|Board                     | PYNQ   |Zedboard|                
+|Clock(MHz)		             |  150   |  150   |
+|Precision		             |Fixed-16|Fixed-16|
+|Power (W)		             |   2.98 |   1.20 |
+|Operations (GOP)		       |29.47   |29.47   |
+|Performance(GOP/s)		     |25.98   |30.15   |
+|Power Efficiency(GOP/s/W) |	4.20  | 6.02   |
 
 # Result  
 ![image1](https://github.com/dhm2013724/yolov2_xilinx_fpga/blob/150MHzTn4Tm32Tr26Tc26Cin4Cout2/pynq/result2.jpg)
