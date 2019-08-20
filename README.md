@@ -1,21 +1,22 @@
-## YOLOv2 Accelerator in Xilinx's Zynq-7000 Soc(PYNQ-z2 and Zedboard)
+# YOLOv2 Accelerator in Xilinx's Zynq-7000 Soc(PYNQ-z2 and Zedboard)
 A Demo for accelerating YOLOv2 in Xilinx's FPGA PYNQ-z2 and Zedboard
 For PYNQ-z2 and Zedboard, in addition to final Linux application( For PYNQ, turn to PYNQ directory; For Zedboard, turn to SDK and PetaLinux), other steps are almost same:
-# (1)Software Simulation
+## (1)Software Simulation
 Firstly, you should download the darknet source from [https://github.com/pjreddie/darknet](https://github.com/pjreddie/darknet) and yolov2.weights from [https://pjreddie.com/media/files/yolov2-voc.weights](https://pjreddie.com/media/files/yolov2-voc.weights). 
 
 Secondly, modify the darknet's weight load function to get the weights and biases that we want(Here, considering that batcn normalizaton can be combined with weight and bias).
 
 Thirdly, considering that multiple and add operations that implemented in hardware logic will cost too high resources in FPGA[3][6], we should use lower percision operation instead of float-32. Here, I just follow [3] and [6] to quantize the input/output feature maps, weights and biases to dynamic fixed-16. And use fixed-16 operation to replace multiple, add and relu operations in float-32 percision. 
 
-# (2)HLS Accelerator and Simulation
+## (2)HLS Accelerator and Simulation
 future
-# (3)Vivado Block Design
+## (3)Vivado Block Design
 future
-# (4)Vivado SDK for Zedboard
+## (4)Vivado SDK for Zedboard
 future
-# (5)PetaLinux
+## (5)PetaLinux
 future
+
 Every directory has some steps to help further implement or study this accelerator.
 
 
