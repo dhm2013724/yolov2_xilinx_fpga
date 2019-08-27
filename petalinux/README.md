@@ -37,6 +37,5 @@ Third, back to the project directory __yolov2/__, and use type this cmd to initi
 Here, I like to set rootfs from SD card(Just set __Image packaing configration-->file system type or rootfs(I forgot it...)--> SD card__). So that, the files that you used can be saved in SD card when you power-off it. And, then save configuraiton and exit. You will have to wait for a long time(I think that it will donwloads somethings from Internet or just do some configs. Make sure that your computer can access the Internet).
 
 ## Further config or build project
-If you have other configuraitons, you can use __petalinux-config or petalinux-config -c XXX__ to further config this project. More informations are available in __petalinux-config -h__.
-
-
+If you have other configuraitons, you can use __petalinux-config or petalinux-config -c XXX__ to further config this project. More informations are available in __petalinux-config -h__. After configuraiotn, you can type __petalinux-build__ to build the whole project. After that, type __petalinux-package -boot --fsbl image/linux/zynq_fsbl.elf --fpga --u-boot --force__ to generate BOOT.BIN. Finally, you will get three files for petalinux: __BOOT.BIN, image.ub and rootfs.cpio__.
+![package.jpg](https://github.com/dhm2013724/yolov2_xilinx_fpga/blob/150MHzTn4Tm32Tr26Tc26Cin4Cout2/petalinux/package.jpg)
