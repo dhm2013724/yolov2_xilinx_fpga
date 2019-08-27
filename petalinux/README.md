@@ -39,3 +39,11 @@ Here, I like to set rootfs from SD card(Just set __Image packaing configration--
 ## Further config or build project
 If you have other configuraitons, you can use __petalinux-config or petalinux-config -c XXX__ to further config this project. More informations are available in __petalinux-config -h__. After configuraiotn, you can type __petalinux-build__ to build the whole project. After that, type __petalinux-package -boot --fsbl image/linux/zynq_fsbl.elf --fpga --u-boot --force__ to generate BOOT.BIN. Finally, you will get three files for petalinux: __BOOT.BIN, image.ub and rootfs.cpio__.
 ![package.jpg](https://github.com/dhm2013724/yolov2_xilinx_fpga/blob/150MHzTn4Tm32Tr26Tc26Cin4Cout2/petalinux/package.jpg)
+
+## Partition SD Card and unzip rootfs
+Just use Disks tool in ubuntu to partition SD card into two file systems: one FAT and one EXT4. Copy BOOT.BIN and image.ub into FAT file system and copy rootfs.cpio into EXT4 fs.(If you meet permission denied, use sudo). In EXT4 fs, type cmd __sudo pax -rvf rootfs.cpio__ to unzip the rootfs. Then, umount EXT4 and FAT. Here, the Petalinux has been implemented.
+
+## Download related files and Test yolov2
+Use ssh or other protocol to transmit related files into EXT4 fs, files that yolov2 accelerator needs are available in previous steps. like below:
+![yolov2_files.jpg](https://github.com/dhm2013724/yolov2_xilinx_fpga/blob/150MHzTn4Tm32Tr26Tc26Cin4Cout2/petalinux/files_that_yolov2_need.jpg)
+
