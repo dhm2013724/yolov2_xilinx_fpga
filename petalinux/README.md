@@ -49,6 +49,7 @@ Use ssh or other protocol to transmit related files into EXT4 fs, files that yol
 type cmd __chmod 777 yolov2_4port_n4m32.elf__ to make it can be executed. Then, type __./yolov2_4port_n4m32.elf one_pic_name.jpg__ to test it. Then, you will get the prediction results and saved as one picture named __predictions.png__.
 ![output.jpg](https://github.com/dhm2013724/yolov2_xilinx_fpga/blob/150MHzTn4Tm32Tr26Tc26Cin4Cout2/petalinux/output.jpg)
 
-![prediction.png]
+
+![predictions.png]
 (https://github.com/dhm2013724/yolov2_xilinx_fpga/blob/150MHzTn4Tm32Tr26Tc26Cin4Cout2/petalinux/predictions.png)
 
