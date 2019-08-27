@@ -7,8 +7,7 @@ First, make sure that you have installed PetaLinux and Vivado in Ubuntu 16.04(Se
 # Create PetaLinux Project and modify the Device-tree to reserve memory
 Use petalinux-create cmd to create one petalinux project. If you dont know how to create one project, you can type __petalinux-create -h or --help__ to get help and more informations. Here, I just type __petalinux-create -t project -n yolov2 --template zynq__ to create a petalinux project named yolov2. Then, __cd yolov2/project-spec/meta-user/recipes-bsp/device-tree/files/__ to find the __system-user.dtsi__ and modify it like below:
 
-'''
-
+```
 /include/ "system-conf.dtsi"
 / {
 	reserved-memory {
@@ -28,5 +27,4 @@ Use petalinux-create cmd to create one petalinux project. If you dont know how t
 	};
 	
 };
-
-'''
+```
