@@ -51,5 +51,5 @@ type cmd __chmod 777 yolov2_4port_n4m32.elf__ to make it can be executed. Then, 
 
 
 ![predictions.png]
-(https://github.com/dhm2013724/yolov2_xilinx_fpga/blob/150MHzTn4Tm32Tr26Tc26Cin4Cout2/petalinux/predictions.png)
+(../predictions.png)
 
