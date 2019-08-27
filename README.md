@@ -15,7 +15,7 @@ future
 ## (4)Vivado SDK for Zedboard
 future
 ## (5)PetaLinux
-future
+Related steps have been updated in Petalinux direcotry. Just use two files(__.hdf file and .bit file__) that generated from Vivado project to create one Peatalinux. Then test yolov2 acclerator in it.
 
 Every directory has some steps to help further implement or study this accelerator.
 
