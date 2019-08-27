@@ -9,11 +9,11 @@ Secondly, modify the darknet's weight load function to get the weights and biase
 Thirdly, considering that multiple and add operations that implemented in hardware logic will cost too high resources in FPGA[3][6], we should use lower percision operation instead of float-32. Here, I just follow [3] and [6] to quantize the input/output feature maps, weights and biases to dynamic fixed-16. And use fixed-16 operation to replace multiple, add and relu operations in float-32 percision. 
 
 ## (2)HLS Accelerator and Simulation
-future
+Oh, this part is too complicated to brightly intoduce. __Current design didnt implemment C/RTL simulation, because that testbench always overflow!__ if anyone can solve it, please tell me and upload it, Thanks!
 ## (3)Vivado Block Design
-future
+Just connect the YOLOv2 IP in Vivado Block Design. Only the clock wizzard configuraiotn should be careful. I remembered that input clock is 100MHz, output's clock is 150MHz, __Reset pin active low__, that's all.
 ## (4)Vivado SDK for Zedboard
-future
+This step just wants to get the executable file to driver and control YOLOv2 Acceleraotr in PL. Here, I reserved 0x1000_0000 bytes memories for accelerator to read/wirte feature maps and read weights.
 ## (5)PetaLinux
 Related steps have been updated in Petalinux direcotry. Just use two files(__.hdf file and .bit file__) that generated from Vivado project to create one Peatalinux. Then test yolov2 acclerator in it.
 
