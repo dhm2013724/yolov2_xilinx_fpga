@@ -34,9 +34,9 @@ Here, I just follow the wiki to reserve one continued memories for yolov2(base a
 Third, back to the project directory __yolov2/__, and use type this cmd to initilize your project: __petalinux-config --get-hw-description DIR_where_you_put_the_design_1_wrapper.hdf__. Then, it will come to one menu like below:
 ![hdf_config.jpg](https://github.com/dhm2013724/yolov2_xilinx_fpga/blob/150MHzTn4Tm32Tr26Tc26Cin4Cout2/petalinux/hdf_config.jpg)
 
-Here, I like to set rootfs from SD card(Just set Image packaing configration-->file system type or rootfs(I forgot it...)--> SD card). So that, the files that you used can be saved in SD card when you power-off it. And, then save configuraiton and exit. You will have to wait for a long time(I think that it will donwloads somethings from Internet or just do some configs. Make sure that your computer can access the Internet).
+Here, I like to set rootfs from SD card(Just set __Image packaing configration-->file system type or rootfs(I forgot it...)--> SD card__). So that, the files that you used can be saved in SD card when you power-off it. And, then save configuraiton and exit. You will have to wait for a long time(I think that it will donwloads somethings from Internet or just do some configs. Make sure that your computer can access the Internet).
 
 ## Further config or build project
-
+If you have other configuraitons, you can use __petalinux-config or petalinux-config -c XXX__ to further config this project. More informations are available in __petalinux-config -h__.
 
 
