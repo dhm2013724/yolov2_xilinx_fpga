@@ -32,7 +32,7 @@ Here, I just follow the wiki to reserve one continued memories for yolov2(base a
 
 ## Config project with .hdf file
 Third, back to the project directory __yolov2/__, and use type this cmd to initilize your project: __petalinux-config --get-hw-description DIR_where_you_put_the_design_1_wrapper.hdf__. Then, it will come to one menu like below:
-[!https://github.com/dhm2013724/yolov2_xilinx_fpga/blob/150MHzTn4Tm32Tr26Tc26Cin4Cout2/petalinux/hdf_config.jpg](https://github.com/dhm2013724/yolov2_xilinx_fpga/blob/150MHzTn4Tm32Tr26Tc26Cin4Cout2/petalinux/hdf_config.jpg)
+![hdf_config.jpg](https://github.com/dhm2013724/yolov2_xilinx_fpga/blob/150MHzTn4Tm32Tr26Tc26Cin4Cout2/petalinux/hdf_config.jpg)
 
 
 
