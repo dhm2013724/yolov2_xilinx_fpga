@@ -2,7 +2,8 @@
 A Demo for accelerating YOLOv2 in Xilinx's FPGA PYNQ-z2 and Zedboard
 For PYNQ-z2 and Zedboard, in addition to final Linux application( For PYNQ, turn to PYNQ directory; For Zedboard, turn to SDK and PetaLinux), other steps are almost same:
 ## (1)Software Simulation
-Firstly, you should download the darknet source from [https://github.com/pjreddie/darknet](https://github.com/pjreddie/darknet) and yolov2.weights from [https://pjreddie.com/media/files/yolov2-voc.weights](https://pjreddie.com/media/files/yolov2-voc.weights). 
+Firstly, you should download the darknet source from [https://github.com/pjreddie/darknet](https://github.com/pjreddie/darknet) and yolov2.weights from [https://pjreddie.com/media/files/yolov2.weights](https://pjreddie.com/media/files/yolov2.weights). 
+
 
 Secondly, modify the darknet's weight load function to get the weights and biases that we want(Here, considering that batcn normalizaton can be combined with weight and bias).
 
