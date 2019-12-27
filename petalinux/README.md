@@ -52,7 +52,6 @@ reserved-driver@0 {
 };
 ```
 Here, I just follow the wiki to reserve one continued memories for yolov2(Zedboard:base address 0x1000_0000, size 0x1000_0000 bytes, ZCU102: 0x6000_0000, size 0x1000_0000).  
-
 [https://xilinx-wiki.atlassian.net/wiki/spaces/A/pages/18841683/Linux+Reserved+Memory](https://xilinx-wiki.atlassian.net/wiki/spaces/A/pages/18841683/Linux+Reserved+Memory)
 
 ## Config project with .hdf file
