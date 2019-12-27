@@ -47,10 +47,10 @@ Similar to [8], the design implements ping-pong buffers to overlap the delay of 
 # Evaulate  
 Experiments show that floating point addition in HLS requires three DSP resources, floating point multiplication requires two DSPs; fixed point 16-bit multiplication requires one DSP, and fixed-point 16-bit addition can be implemented only using LUT. After placing and routing, resource consumptions of fixed-16 (Tn=2, Tm=32, Tr=26, Tc=26) are shown as follows:     
 
-  |  Resource     |  DSP      | BRAM      | LUT        |  FF        | Freq   |
-  |  -----        |   -----   | -----     | -----      |  -----     | -----  |
-  |Fixed-16(n2m32)| 153(69%)  | 88(63%)  | 35977(68%) | 36247(34%) |	150MHz |
-
+  |  Resource     |  DSP      | BRAM      | LUT        |  FF        | Freq   | Dev |
+  |  -----        |   -----   | -----     | -----      |  -----     | -----  |-----|
+  |Fixed-16(n4m32)| 153(69%)  | 88(63%)  | 35977(68%) | 36247(34%) |	150MHz |Zedboard|
+  |Fixed-16(n4m32)| 147(6%)   | 88(10%)  | 36759(13%) | 30447(6%) |	180MHz |ZCU102|
 According to the current design, DSP and BRAM are more expensive. The cost of DSP can be further reduced (there are many bit-width redundant multiplications), and the BRAM cost can be reduced. (As Shen [1] said, BRAM allocates an exponential size of 2 in HLS. Actually, many BRAMs are redundant. ).  
 The performance comparison in the two cases is shown in the following table:  
   
