@@ -28,7 +28,30 @@ Use petalinux-create cmd to create one petalinux project. If you dont know how t
 	
 };
 ```
-Here, I just follow the wiki to reserve one continued memories for yolov2(base address 0x1000_0000, size 0x1000_0000 bytes). [https://xilinx-wiki.atlassian.net/wiki/spaces/A/pages/18841683/Linux+Reserved+Memory](https://xilinx-wiki.atlassian.net/wiki/spaces/A/pages/18841683/Linux+Reserved+Memory)
+
+```
+/include/ "system-conf.dtsi"
+/ {
+
+reserved-memory {
+   #address-cells = <2>;
+   #size-cells = <2>;
+   ranges;
+ 
+   reserved: buffer@0 {
+      no-map;
+      reg = <0x0 0x60000000 0x0 0x10000000>;
+   };
+};
+ 
+reserved-driver@0 {
+   compatible = "xlnx,reserved-memory";
+   memory-region = <&reserved>;
+};
+
+};
+```
+Here, I just follow the wiki to reserve one continued memories for yolov2(Zedboard:base address 0x1000_0000, size 0x1000_0000 bytes, ZCU102: 0x6000_0000, size 0x1000_0000). [https://xilinx-wiki.atlassian.net/wiki/spaces/A/pages/18841683/Linux+Reserved+Memory](https://xilinx-wiki.atlassian.net/wiki/spaces/A/pages/18841683/Linux+Reserved+Memory)
 
 ## Config project with .hdf file
 Third, back to the project directory __yolov2/__, and use type this cmd to initilize your project: __petalinux-config --get-hw-description DIR_where_you_put_the_design_1_wrapper.hdf__. Then, it will come to one menu like below:
