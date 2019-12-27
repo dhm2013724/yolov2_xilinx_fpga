@@ -51,7 +51,9 @@ reserved-driver@0 {
 
 };
 ```
-Here, I just follow the wiki to reserve one continued memories for yolov2(Zedboard:base address 0x1000_0000, size 0x1000_0000 bytes, ZCU102: 0x6000_0000, size 0x1000_0000).  [https://xilinx-wiki.atlassian.net/wiki/spaces/A/pages/18841683/Linux+Reserved+Memory](https://xilinx-wiki.atlassian.net/wiki/spaces/A/pages/18841683/Linux+Reserved+Memory)
+Here, I just follow the wiki to reserve one continued memories for yolov2(Zedboard:base address 0x1000_0000, size 0x1000_0000 bytes, ZCU102: 0x6000_0000, size 0x1000_0000).  
+
+[https://xilinx-wiki.atlassian.net/wiki/spaces/A/pages/18841683/Linux+Reserved+Memory](https://xilinx-wiki.atlassian.net/wiki/spaces/A/pages/18841683/Linux+Reserved+Memory)
 
 ## Config project with .hdf file
 Third, back to the project directory __yolov2/__, and use type this cmd to initilize your project: __petalinux-config --get-hw-description DIR_where_you_put_the_design_1_wrapper.hdf__. Then, it will come to one menu like below:
