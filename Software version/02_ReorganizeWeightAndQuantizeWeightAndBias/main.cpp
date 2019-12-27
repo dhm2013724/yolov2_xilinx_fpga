@@ -217,7 +217,7 @@ int main(int argc,char *argv[])
 	{
 		printf("[%d]=%d\n",i,maxQ_array[i]);
 	}
-	sprintf(s,"weightsv2_comb_reorg_ap16_maxQ_%s.bin",itoa(layer_num,layer_num_string,10));
+	sprintf(s,"weightsv2_comb_reorg_ap16_maxQ_%d.bin", layer_num);
 	printf("%s\n",s);
 
 	fout = fopen(s,"wb");
@@ -237,7 +237,7 @@ int main(int argc,char *argv[])
 	{
 		printf("[%d]=%d\n",i,maxQ_array[i]);
 	}
-	sprintf(s,"biasv2_comb_ap16_maxQ_%s.bin",itoa(layer_num,layer_num_string,10));
+	sprintf(s,"biasv2_comb_ap16_maxQ_%d.bin", layer_num);
 	printf("%s\n",s);
 
 	fout = fopen(s,"wb");
