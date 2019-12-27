@@ -16,6 +16,10 @@
 
 //#include "yolo_hls.h"
 
+#ifndef FLT_MAX
+#define FLT_MAX 3.402823466e+38F
+#endif
+
 typedef enum{
     LOGISTIC, RELU, RELIE, LINEAR, RAMP, TANH, PLSE, LEAKY, ELU, LOGGY, STAIR, HARDTAN, LHTAN
 } ACTIVATION;
@@ -4329,7 +4333,7 @@ void yolov2_hls_ps(network *net, float *input)
 	FILE* fout;
 	char layer_num_string[256];
 	char s[256];
-	sprintf(s,"yolov2_ap16_inout_maxQ_%s.bin",itoa(QNUM+1,layer_num_string,10));
+	sprintf(s,"yolov2_ap16_inout_maxQ_%d.bin", QNUM+1);
 	printf("%s\n",s);
 	fout = fopen(s,"wb");
     if(!fout) printf("fopen %s error\n",s);
