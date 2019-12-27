@@ -54,16 +54,16 @@ Experiments show that floating point addition in HLS requires three DSP resource
 According to the current design, DSP and BRAM are more expensive. The cost of DSP can be further reduced (there are many bit-width redundant multiplications), and the BRAM cost can be reduced. (As Shen [1] said, BRAM allocates an exponential size of 2 in HLS. Actually, many BRAMs are redundant. ).  
 The performance comparison in the two cases is shown in the following table:  
   
-| Performance              |        |        |
-|  -----                   | -----  | -----  |
-|CNN models	               |YOLO v2 |YOLO v2 |
-|Board                     | PYNQ   |Zedboard|                
-|Clock(MHz)		             |  150   |  150   |
-|Precision		             |Fixed-16|Fixed-16|
-|Power (W)		             |   2.98 |   1.20 |
-|Operations (GOP)		       |29.47   |29.47   |
-|Performance(GOP/s)		     |25.98   |30.15   |
-|Power Efficiency(GOP/s/W) |	4.20  | 6.02   |
+| Performance              |        |        |        |
+|  -----                   | -----  | -----  | -----  |
+|CNN models	               |YOLO v2 |YOLO v2 | YOLO v2|
+|Board                     | PYNQ   |Zedboard| ZCU102 |                
+|Clock(MHz)		             |  150   |  150   |  180   |
+|Precision		             |Fixed-16|Fixed-16|Fixed-16|
+|Power (W)		             |   2.98 |   1.20 | ?      |
+|Operations (GOP)		       |29.47   |29.47   | 29.47  |
+|Performance(GOP/s)		     |25.98   |30.15   | 36.13  |
+|Power Efficiency(GOP/s/W) |	4.20  | 6.02   | ?      | 
 
 # Result  
 ![image1](https://github.com/dhm2013724/yolov2_xilinx_fpga/blob/150MHzTn4Tm32Tr26Tc26Cin4Cout2/pynq/result2.jpg)
