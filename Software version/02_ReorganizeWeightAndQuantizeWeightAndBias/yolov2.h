@@ -16,6 +16,10 @@
 
 //#include "yolo_hls.h"
 
+#ifndef FLT_MAX
+#define FLT_MAX 3.402823466e+38F
+#endif
+
 typedef enum{
     LOGISTIC, RELU, RELIE, LINEAR, RAMP, TANH, PLSE, LEAKY, ELU, LOGGY, STAIR, HARDTAN, LHTAN
 } ACTIVATION;
