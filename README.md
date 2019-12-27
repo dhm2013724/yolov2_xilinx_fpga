@@ -50,7 +50,7 @@ Experiments show that floating point addition in HLS requires three DSP resource
   |  Resource     |  DSP      | BRAM      | LUT        |  FF        | Freq   | Dev |
   |  -----        |   -----   | -----     | -----      |  -----     | -----  |-----|
   |Fixed-16(n4m32)| 153(69%)  | 88(63%)  | 35977(68%) | 36247(34%) |	150MHz |Zedboard|
-  |Fixed-16(n4m32)| 147(6%)   | 88(10%)  | 36759(13%) | 30447(6%) |	180MHz |ZCU102|
+  |Fixed-16(n4m32)| 147(6%)   | 88(10%)  | 36759(13%) | 30447(6%) |	180MHz |ZCU102|  
 According to the current design, DSP and BRAM are more expensive. The cost of DSP can be further reduced (there are many bit-width redundant multiplications), and the BRAM cost can be reduced. (As Shen [1] said, BRAM allocates an exponential size of 2 in HLS. Actually, many BRAMs are redundant. ).  
 The performance comparison in the two cases is shown in the following table:  
   
