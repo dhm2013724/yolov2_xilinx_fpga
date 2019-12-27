@@ -4090,8 +4090,8 @@ void yolov2_hls_ps(network *net, float *input)
 	FILE *fp_w = fopen("weightsv2_comb_reorg.bin", "rb");
     if(!fp_w) file_error("weightsv2_comb_reorg.bin");
 #else
-	FILE *fp_w = fopen("weightsv2_comb.bin", "rb");
-    if(!fp_w) file_error("weightsv2_comb.bin");
+	FILE *fp_w = fopen("weights.bin", "rb");
+    if(!fp_w) file_error("weights.bin");
 #endif
 
 #ifdef REORG_GEN
@@ -4100,8 +4100,8 @@ void yolov2_hls_ps(network *net, float *input)
     if(!fp_w_reorg) file_error("weightsv2_comb_reorg.bin");
 #endif
 
-	FILE *fp_b = fopen("biasv2_comb.bin", "rb");
-    if(!fp_b) file_error("biasv2_comb.bin");
+	FILE *fp_b = fopen("bias.bin", "rb");
+    if(!fp_b) file_error("bias.bin");
 
 	fread(Weight_buf, sizeof(float), 203767168/4, fp_w);
 	fread(Beta_buf, sizeof(float), 43044/4, fp_b);
