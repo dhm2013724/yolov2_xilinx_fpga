@@ -11,6 +11,6 @@ Some other related files are available from software version foler.
 
 ![overview](https://github.com/dhm2013724/yolov2_xilinx_fpga/blob/150MHzTn4Tm32Tr26Tc26Cin4Cout2/hls/c_sim.PNG)
 
-(I just ran this in vivado HLS 2019.2 in 6th July 2020, but the C Simulation always stalled at layer[12]; I will optimize the code within several weeks.)
+(I just ran this in vivado HLS 2019.2 in 6th July 2020, but the C Simulation completed after nearly one and half hour; I will optimize the code in the future.)
 
 This step will use five bin files that generated from software version's step 2&3.(just some weights, bias, and related quantized params)

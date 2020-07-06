@@ -3495,11 +3495,11 @@ void yolov2_hls_ps(network *net, float *input)
 	int *Weight_buf = (int *)calloc(203767168/4/2,sizeof(int));
 	int *Beta_buf   = (int *)calloc((43044+4)/4/2,sizeof(int));
 
-	FILE *fp_w = fopen("weightsv2_comb_reorg_ap16.bin", "rb");
-    if(!fp_w) file_error("weightsv2_comb_reorg_ap16.bin");
+	FILE *fp_w = fopen("weights_reorg_ap16.bin", "rb");
+    if(!fp_w) file_error("weights_reorg_ap16.bin");
 
-	FILE *fp_b = fopen("biasv2_comb_ap16.bin", "rb");
-    if(!fp_b) file_error("biasv2_comb_ap16.bin");
+	FILE *fp_b = fopen("bias_ap16.bin", "rb");
+    if(!fp_b) file_error("bias_ap16.bin");
 
 	fread(Weight_buf, sizeof(int), 203767168/4/2, fp_w);
 	fread(Beta_buf, sizeof(int), (43044+4)/4/2, fp_b);
@@ -3528,7 +3528,7 @@ void yolov2_hls_ps(network *net, float *input)
 	for(x=0;x<QNUM+1;x++)
 		printf("[%2d inputQ]=%2d\n",x,inputQ[x]);
 
-	Qin = fopen("weightsv2_comb_reorg_ap16_maxQ_23.bin","rb");
+	Qin = fopen("weights_reorg_ap16_maxQ_23.bin","rb");
 	if(!Qin) file_error("Qin error 2\n");
 	fread(weightQ,sizeof(int),QNUM,Qin);
 	fclose(Qin);
@@ -3536,7 +3536,7 @@ void yolov2_hls_ps(network *net, float *input)
 	for(x=0;x<QNUM;x++)
 		printf("[%2d weightQ]=%2d\n",x,weightQ[x]);
 
-	Qin = fopen("biasv2_comb_ap16_maxQ_23.bin","rb");
+	Qin = fopen("bias_ap16_maxQ_23.bin","rb");
 	if(!Qin) file_error("Qin error 4\n");
 	fread(betaQ,sizeof(int),QNUM,Qin);
 	fclose(Qin);
