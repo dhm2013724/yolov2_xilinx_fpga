@@ -1,4 +1,0 @@
-## Quantize Input/Output Feature Maps
-Just run this code, it will quantize each layer's input feature maps. For each layer, the previous layer's output fearure maps are current layer's input feature maps. Besides of 23 convolutional layers, 5 MaxPool layers and 1 Reorg layer will not affect the feature maps' percisions. And for layer 0, considering that resize operation in preprocess map RGB pixel values from 0-255(uint8) to 0-1(float), I just set input feature maps' fraction bit to be 14.
-
-Besides of the files included in this folder, other files can be generated from previous steps. This step will generate one bin file("yolov2_ap16_inout_maxQ_24.bin") about fraction bit for 23 convolutional layers.(Each MaxPool Layer and Reorg Layer's input/output feature maps' fraction bit will follow previous layer's output feature maps' fraction bit.)
