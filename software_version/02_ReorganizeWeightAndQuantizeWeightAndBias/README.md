@@ -3,7 +3,7 @@ This folder is about how to reorganize YOLOv2's weights, and quantize weights an
 
 Firstly, just copy two files(weights.bin and bias.bin) here from step 1.
 
-Secondly, make sure that MARCO DEFINE __REORG_GEN__ in yolov2_acc_sim.h is enabled, __REORG_GEN__ in yolov2_acc_sim.h is disabled, and __QUANTI__ in main.cpp is disabled. This step will generate reorganized weight file: weights_reorg.bin. for example: g++ -O3 -w -o test_layers main.cpp -I . -lm; ./test_layers or ./test_layers ../test_imgs/dog.jpg
+Secondly, make sure that MARCO DEFINE __REORG_GEN__ in yolov2_acc_sim.h is enabled, __REORG_TEST__ in yolov2_acc_sim.h is disabled, and __QUANTI__ in main.cpp is disabled. This step will generate reorganized weight file: weights_reorg.bin. for example: g++ -O3 -w -o test_layers main.cpp -I . -lm; ./test_layers or ./test_layers ../test_imgs/dog.jpg
 
 3rdly(__Optional__), if you want to test the reorganized weight, you can __enable__ the marco define __REORG_GEN__ and __disable__ __REORG_TEST__ in yolov2_acc_sim.h. And, compare the output with 2nd's output. (The last layer's output is generated from the functon __forward_region_layer__) in yolov2.h.
 
