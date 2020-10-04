@@ -3480,10 +3480,6 @@ void draw_detections(image im, detection *dets, int num, float thresh, char **na
 void yolov2_hls_ps(network *net, float *input)
 {
 	int x;
-
-	network orig = *net;
-	net->input = input;
-
 	int weight_offset[32] = {864, 18432, 73728, 8192, 73728,
 		294912, 32768, 294912, 1179648, 131072, 1179648, 131072,
 		1179648, 4718592, 524288, 4718592, 524288, 4718592, 9437184,
@@ -3496,10 +3492,10 @@ void yolov2_hls_ps(network *net, float *input)
 	int *Beta_buf   = (int *)calloc((43044+4)/4/2,sizeof(int));
 
 	FILE *fp_w = fopen("weights_reorg_ap16.bin", "rb");
-    if(!fp_w) file_error("weights_reorg_ap16.bin");
+    	if(!fp_w) file_error("weights_reorg_ap16.bin");
 
 	FILE *fp_b = fopen("bias_ap16.bin", "rb");
-    if(!fp_b) file_error("bias_ap16.bin");
+    	if(!fp_b) file_error("bias_ap16.bin");
 
 	fread(Weight_buf, sizeof(int), 203767168/4/2, fp_w);
 	fread(Beta_buf, sizeof(int), (43044+4)/4/2, fp_b);
@@ -3508,7 +3504,6 @@ void yolov2_hls_ps(network *net, float *input)
 	fclose(fp_b);
 
 #define QNUM 23
-
 	int inputQ[QNUM+1];
 	int weightQ[QNUM];
 	int betaQ[QNUM];
@@ -3622,8 +3617,7 @@ void yolov2_hls_ps(network *net, float *input)
 
 	in_ptr[31] = out_ptr[30];
 
-    network netp = *net;
-    int i;
+    	int i;
 	int woffset = 0;
 	int aoffset = 0;
 	int boffset = 0;
@@ -3636,10 +3630,9 @@ void yolov2_hls_ps(network *net, float *input)
 	int trow_loops;
 	int T2Rate;
 
-    for(i = 0; i < netp.n; ++i)
+    for(i = 0; i < net->n; ++i)
 	{
-        netp.index = i;
-        layer l = netp.layers[i];
+        layer l = net->layers[i];
 		printf("Layer[%2d]: ",i);
 		switch(l.type)
 		{
@@ -3806,16 +3799,12 @@ void yolov2_hls_ps(network *net, float *input)
 					}
 					region_buf[j] = output_p*LastLayerOutputPara;
 				}
-				netp.input = region_buf;
-				forward_region_layer(l,netp);
+				net->input = region_buf;
+				forward_region_layer(l, net);
 				break;
 		}
-
-		netp.input = l.output;
-
     }
 	printf("SUM_GOP=%g\n",sum_gop);
-	*net = orig;
 
 	free(region_buf);
 	free(Memory_buf);
