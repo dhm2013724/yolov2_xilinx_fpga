@@ -11,7 +11,7 @@
 #define MIN_VALUE (-1024*1024*1024)
 #define MAX_VALUE (1024*1024*1024)
 
-#define QUANTI
+//#define QUANTI
 
 #ifndef QUANTI
 int main( int argc, char *argv[])

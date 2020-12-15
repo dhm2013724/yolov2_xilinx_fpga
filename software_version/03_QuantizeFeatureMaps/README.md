@@ -6,3 +6,5 @@ Besides of the files included in this folder, other files can be generated from 
 About the QNUM's selection, here just for simple, you can make related codes to change the QNUM for percision. I just changed QNUM's value to test the percision, and choose 23. QNUM would only affect the percision of CONV layer and the design of CONV compute module.
 
 Defaultly, quantization stage would perfer to use only one pic __kite.jpg__ in test_imgs. Here just use one pic to get IFM/OFMs' quantized factors, you can also use more pictures to make this stage more logical.
+
+Add Makefile, just __make test; ./test_layers__.

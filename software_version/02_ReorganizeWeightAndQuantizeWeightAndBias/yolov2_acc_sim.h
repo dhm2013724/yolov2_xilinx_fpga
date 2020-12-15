@@ -15,7 +15,7 @@
 #define MAX_BETA_LENGTH (1024)
 
 //#define REORG_GEN
-#define REORG_TEST
+//#define REORG_TEST
 
 void input_load(float *input,float input_buffer[Tn][OnChipIB_Height][OnChipIB_Width],int r,int c,int n,int Kstride,int Padding,int TRow,int TCol,int Input_w,int Input_h,int TN_MIN,int IHxIW,int LayerType)
 {
