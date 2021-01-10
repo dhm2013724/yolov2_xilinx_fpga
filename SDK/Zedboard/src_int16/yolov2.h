@@ -1,34 +1,22 @@
-#ifndef YOLOV3
+#ifndef YOLOV2_H
 
-#define YOLOV3
+#define YOLOV2_H
 
 #include <stdio.h>
 #include <stdlib.h>
-//#include <iostream>
+#include <iostream>
 #include <math.h>
 #include <fcntl.h>
 #include <string.h>
-#include <time.h>
-#include "xconv_hw.h"
-//#include "hw_drivers.h"
-
+#include <assert.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
-#define FLT_MAX         3.402823466e+38F        /* max value */
-
-double what_time_is_it_now()
-{
-    struct timeval time;
-    if (gettimeofday(&time,NULL)){
-        return 0;
-    }
-    return (double)time.tv_sec + (double)time.tv_usec * .000001;
-}
-
-//#include "yolo_hls.h"
+#ifndef FLT_MAX
+#define FLT_MAX 3.402823466e+38F
+#endif
 
 typedef enum{
     LOGISTIC, RELU, RELIE, LINEAR, RAMP, TANH, PLSE, LEAKY, ELU, LOGGY, STAIR, HARDTAN, LHTAN
@@ -151,9 +139,7 @@ struct layer{
 
     int onlyforward;
     int stopbackward;
-   // int dontload;
     int dontsave;
-  //  int dontloadscales;
 
     float temperature;
     float probability;
@@ -277,7 +263,6 @@ struct layer{
     struct layer *ug;
     struct layer *wg;
 
-    //tree *softmax_tree;
     size_t workspace_size;
 };
 
@@ -324,8 +309,6 @@ void free_layer(layer l)
     if(l.h_cpu)              free(l.h_cpu);
     if(l.binary_input)       free(l.binary_input);
 }
-
-//void free_layer(layer);
 
 typedef enum {
     CONSTANT, STEP, EXP, POLY, STEPS, SIG, RANDOM
@@ -377,9 +360,7 @@ typedef struct network{
     float saturation;
     float hue;
     int random;
-
     int gpu_index;
-//    tree *hierarchy;
 
     float *input;
     float *truth;
@@ -473,7 +454,6 @@ typedef struct load_args{
     image *im;
     image *resized;
     data_type type;
-//    tree *hierarchy;
 } load_args;
 
 typedef struct{
@@ -481,10 +461,6 @@ typedef struct{
     float x,y,w,h;
     float left, right, top, bottom;
 } box_label;
-
-//network *load_network(char *cfg, char *weights, int clear);
-//load_args get_base_args(network *net);
-//void free_data(data d);
 
 typedef struct{
     char *key;
@@ -763,7 +739,6 @@ char *fgetl(FILE *fp)
 /////////////////////utils end
 
 ////////////////////option_list begin
-
 void option_insert(list *l, char *key, char *val)
 {
     kvp *p = (kvp *)malloc(sizeof(kvp));
@@ -1084,7 +1059,7 @@ image **load_alphabet()
             char buff[256];
             sprintf(buff, "labels/%d_%d.png", i, j);
             //alphabets[j][i] = load_image_color(buff, 0, 0);
-			alphabets[j][i] = load_image_stb(buff, 3);
+	    alphabets[j][i] = load_image_stb(buff, 3);
         }
     }
     return alphabets;
@@ -1298,84 +1273,6 @@ void fill_cpu(int N, float ALPHA, float *X, int INCX)
     for(i = 0; i < N; ++i) X[i*INCX] = ALPHA;
 }
 
-void shortcut_cpu(int batch, int w1, int h1, int c1, float *add, int w2, int h2, int c2, float s1, float s2, float *out)
-{
-    int stride = w1/w2;
-    int sample = w2/w1;
-    assert(stride == h1/h2);
-    assert(sample == h2/h1);
-	//printf("shorcut_layer batch=%d,stride=%d,sample=%d\n",batch,stride,sample);
-	if(stride < 1) stride = 1;
-    if(sample < 1) sample = 1;
-    int minw = (w1 < w2) ? w1 : w2;
-    int minh = (h1 < h2) ? h1 : h2;
-    int minc = (c1 < c2) ? c1 : c2;
-
-    int i,j,k,b;
-    for(b = 0; b < batch; ++b){
-        for(k = 0; k < minc; ++k){
-            for(j = 0; j < minh; ++j){
-                for(i = 0; i < minw; ++i){
-                    int out_index = i*sample + w2*(j*sample + h2*(k + c2*b));
-                    int add_index = i*stride + w1*(j*stride + h1*(k + c1*b));
-                    out[out_index] = s1*out[out_index] + s2*add[add_index];
-                }
-            }
-        }
-    }
-}
-
-void forward_shortcut_layer(const layer l, network net)
-{
-    //copy_cpu(l.outputs*l.batch, net.input, 1, l.output, 1);
-    //shortcut_cpu(l.batch, l.w, l.h, l.c, net.layers[l.index].output, l.out_w, l.out_h, l.out_c, l.alpha, l.beta, l.output);
-    //activate_array(l.output, l.outputs*l.batch, l.activation);
-
-    int w = l.w;
-    int h = l.h;
-    int c = l.c;
-	float *add = net.layers[l.index].output;
-	float *out = l.output;
-	float *in = net.input;
-
-    int i,j,k;
-    for(k = 0; k < c; ++k){
-        for(j = 0; j < h; ++j){
-            for(i = 0; i < w; ++i){
-                int index = i + w*(j + h*k );
-                out[index] = in[index] + add[index];
-            }
-        }
-    }
-
-}
-
-layer make_shortcut_layer(int batch, int index, int w, int h, int c, int w2, int h2, int c2)
-{
-    fprintf(stderr, "res  %3d                %4d x%4d x%4d   ->  %4d x%4d x%4d\n",index, w2,h2,c2, w,h,c);
-    layer l;
-	memset(&l,0,sizeof(layer));
-
-    l.type = SHORTCUT;
-    l.batch = batch;
-    l.w = w2;
-    l.h = h2;
-    l.c = c2;
-    l.out_w = w;
-    l.out_h = h;
-    l.out_c = c;
-    l.outputs = w*h*c;
-    l.inputs = l.outputs;
-
-    l.index = index;
-
-    l.output = (float *)calloc(l.outputs*batch, sizeof(float));;
-
-    l.forward = forward_shortcut_layer;
-
-    return l;
-}
-
 int convolutional_out_height(layer l)
 {
     return (l.h + 2*l.pad - l.size) / l.stride + 1;
@@ -1453,151 +1350,6 @@ void im2col_cpu(float* data_im,
     }
 }
 
-void gemm_nn(int M, int N, int K, float ALPHA, 
-        float *A, int lda, 
-        float *B, int ldb,
-        float *C, int ldc)
-{
-    int i,j,k;
-    #pragma omp parallel for
-    for(i = 0; i < M; ++i){
-        for(k = 0; k < K; ++k){
-            register float A_PART = ALPHA*A[i*lda+k];
-            for(j = 0; j < N; ++j){
-                C[i*ldc+j] += A_PART*B[k*ldb+j];
-            }
-        }
-    }
-}
-
-void gemm_cpu(int TA, int TB, int M, int N, int K, float ALPHA, 
-        float *A, int lda, 
-        float *B, int ldb,
-        float BETA,
-        float *C, int ldc)
-{
-    //printf("cpu: %d %d %d %d %d %f %d %d %f %d\n",TA, TB, M, N, K, ALPHA, lda, ldb, BETA, ldc);
-    int i, j;
-    for(i = 0; i < M; ++i){
-        for(j = 0; j < N; ++j){
-            C[i*ldc + j] *= BETA;
-        }
-    }
-    if(!TA && !TB)
-        gemm_nn(M, N, K, ALPHA,A,lda, B, ldb,C,ldc);
-    //else if(TA && !TB)
-    //    gemm_tn(M, N, K, ALPHA,A,lda, B, ldb,C,ldc);
-    //else if(!TA && TB)
-    //    gemm_nt(M, N, K, ALPHA,A,lda, B, ldb,C,ldc);
-    //else
-    //    gemm_tt(M, N, K, ALPHA,A,lda, B, ldb,C,ldc);
-}
-
-void gemm(int TA, int TB, int M, int N, int K, float ALPHA, 
-        float *A, int lda, 
-        float *B, int ldb,
-        float BETA,
-        float *C, int ldc)
-{
-    gemm_cpu( TA,  TB,  M, N, K, ALPHA,A,lda, B, ldb,BETA,C,ldc);
-}
-
-void normalize_cpu(float *x, float *mean, float *variance, int batch, int filters, int spatial)
-{
-    int b, f, i;
-    for(b = 0; b < batch; ++b){
-        for(f = 0; f < filters; ++f){
-            for(i = 0; i < spatial; ++i){
-                int index = b*filters*spatial + f*spatial + i;
-                x[index] = (x[index] - mean[f])/(sqrt(variance[f]) + .000001f);
-            }
-        }
-    }
-}
-
-void forward_batchnorm_layer(layer l, network net)//for conv
-{
-    normalize_cpu(l.output, l.rolling_mean, l.rolling_variance, l.batch, l.out_c, l.out_h*l.out_w);   
-    scale_bias(l.output, l.scales, l.batch, l.out_c, l.out_h*l.out_w);
-    add_bias(l.output, l.biases, l.batch, l.out_c, l.out_h*l.out_w);
-}
-
-void CONV_Padding_Relu(float *Input,float *Output,float *Weight,const int InFM_num,const int OutFM_num,const int Kernel_size,const int Kernel_stride,const int Input_w,const int Input_h,const int Padding)
-{
-	// (output_w - 1)*Kernel_stride + Kernel_size = Input_w
-	const int output_w = (Input_w - Kernel_size + 2*Padding)/Kernel_stride + 1 ;
-	const int output_h = (Input_h - Kernel_size + 2*Padding)/Kernel_stride + 1 ;
-	int x, y, of, inf;
-	int m,n;
-    for( of = 0; of < OutFM_num; of++){
-    	for( y = 0; y < output_h; y++) {
-    		for( x = 0; x < output_w; x++){
-				float tmp = 0.0;
-				for(inf = 0;inf < InFM_num; inf++)
-				{
-					int intput_offset = inf*Input_w*Input_h + (y*Kernel_stride - Padding)*Input_w + x*Kernel_stride - Padding;
-					for(m = 0;m < Kernel_size; m++)
-					{
-    					for(n = 0;n < Kernel_size; n++)
-						{
-							int kernel_offset = of*InFM_num*Kernel_size*Kernel_size + inf*Kernel_size*Kernel_size;
-							bool inFM_width  = ((x*Kernel_stride + n - Padding) >= 0)&&((x*Kernel_stride + n - Padding) < Input_w);
-							bool inFM_height = ((y*Kernel_stride + m - Padding) >= 0)&&((y*Kernel_stride + m - Padding) < Input_h);
-							if(inFM_width&&inFM_height)
-								tmp += Weight[kernel_offset + m*Kernel_size + n]*Input[intput_offset + m*Input_w + n];
-    					}
-    				}
-				}
-    			Output[of*output_w*output_h + y*output_w + x] = tmp;
-    		}
-    	}
-    }
-}
-
-void forward_convolutional_layer(layer l, network net)
-{
-    int i, j;
-
-    fill_cpu(l.outputs*l.batch, 0, l.output, 1);
-
-	//printf("c=%d,n=%d,size=%d,stride=%d,w=%d,h=%d,pad=%d\n",l.c,l.n,l.size,l.stride,l.w,l.h,l.pad);
-
-    //int m = l.n/l.groups;
-    //int k = l.size*l.size*l.c/l.groups;
-    //int n = l.out_w*l.out_h;
-    //for(i = 0; i < l.batch; ++i){
-    //    for(j = 0; j < l.groups; ++j){
-    //        float *a = l.weights + j*l.nweights/l.groups;
-    //        float *b = net.workspace;
-    //        float *c = l.output + (i*l.groups + j)*n*m;
-
-    //        im2col_cpu(net.input + (i*l.groups + j)*l.c/l.groups*l.h*l.w,
-    //            l.c/l.groups, l.h, l.w, l.size, l.stride, l.pad, b);
-    //        gemm(0,0,m,n,k,1,a,k,b,n,1,c,n);
-    //    }
-    //}
-
-    int m = l.n;
-    int k = l.size*l.size*l.c;
-    int n = l.out_w*l.out_h;
-    float *a = l.weights;
-    float *b = net.workspace;
-    float *c = l.output;
-
-    im2col_cpu(net.input,l.c, l.h, l.w, l.size, l.stride, l.pad, b);
-    gemm(0,0,m,n,k,1,a,k,b,n,1,c,n);
-
-    //CONV_Padding_Relu(net.input,l.output,l.weights,l.c,l.n,l.size,l.stride,l.w,l.h,l.pad);
-
-    if(l.batch_normalize){
-        forward_batchnorm_layer(l, net);
-    } else {
-        add_bias(l.output, l.biases, l.batch, l.n, l.out_h*l.out_w);
-    }
-
-    activate_array(l.output, l.outputs*l.batch, l.activation);
-}
-
 layer make_convolutional_layer(int batch, int h, int w, int c, int n, int groups, int size, int stride, int padding, ACTIVATION activation, int batch_normalize, int binary, int xnor, int adam)
 {
     int i;
@@ -1632,109 +1384,12 @@ layer make_convolutional_layer(int batch, int h, int w, int c, int n, int groups
     l.outputs = l.out_h * l.out_w * l.out_c;
     l.inputs = l.w * l.h * l.c;
 
-   // l.output = (float *)calloc(l.batch*l.outputs, sizeof(float));
-    l.forward = forward_convolutional_layer;
-
-    if(batch_normalize){
-    //    l.scales = (float *)calloc(n, sizeof(float));
-    //   l.rolling_mean = (float *)calloc(n, sizeof(float));
-//l.rolling_variance = (float *)calloc(n, sizeof(float));
-    }
-
     l.workspace_size = get_workspace_size(l);
     l.activation = activation;
 
     fprintf(stderr, "conv  %5d %2d x%2d /%2d  %4d x%4d x%4d   ->  %4d x%4d x%4d  %5.3f BFLOPs\n", n, size, size, stride, w, h, c, l.out_w, l.out_h, l.out_c, (2.0 * l.n * l.size*l.size*l.c/l.groups * l.out_h*l.out_w)/1000000000.);
 
     return l;
-}
-
-void upsample_cpu(float *in, int w, int h, int c, int batch, int stride, int forward, float scale, float *out)
-{
-    int i, j, k, b;
-    for(b = 0; b < batch; ++b){
-        for(k = 0; k < c; ++k){
-            for(j = 0; j < h*stride; ++j){
-                for(i = 0; i < w*stride; ++i){
-                    int in_index = b*w*h*c + k*w*h + (j/stride)*w + i/stride;
-                    int out_index = b*w*h*c*stride*stride + k*w*h*stride*stride + j*w*stride + i;
-                    if(forward) out[out_index] = scale*in[in_index];
-                    else in[in_index] += scale*out[out_index];
-                }
-            }
-        }
-    }
-}
-
-void forward_upsample_layer(const layer l, network net)
-{
-    //fill_cpu(l.outputs*l.batch, 0, l.output, 1);
-    //upsample_cpu(net.input, l.w, l.h, l.c, l.batch, l.stride, 1, l.scale, l.output);
-
-	int c = l.c;
-	int h = l.h;
-	int w = l.w;
-	int stride = l.stride;
-	float *in = net.input;
-	float *out = l.output;
-
-    int i, j, k;
-
-    for(k = 0; k < c; ++k){
-        for(j = 0; j < h*stride; ++j){
-            for(i = 0; i < w*stride; ++i){
-                int in_index = k*w*h + (j/stride)*w + i/stride;
-                int out_index = k*w*h*stride*stride + j*w*stride + i;
-                out[out_index] = in[in_index];
-
-            }
-        }
-    }
-
-}
-
-layer make_upsample_layer(int batch, int w, int h, int c, int stride)
-{
-    layer l;
-	memset(&l,0,sizeof(layer));
-
-    l.type = UPSAMPLE;
-    l.batch = batch;
-    l.w = w;
-    l.h = h;
-    l.c = c;
-    l.out_w = w*stride;
-    l.out_h = h*stride;
-    l.out_c = c;
-    if(stride < 0){
-        stride = -stride;
-        l.reverse=1;
-        l.out_w = w/stride;
-        l.out_h = h/stride;
-    }
-    l.stride = stride;
-    l.outputs = l.out_w*l.out_h*l.out_c;
-    l.inputs = l.w*l.h*l.c;
-    l.output = (float *)calloc(l.outputs*batch, sizeof(float));;
-
-    l.forward = forward_upsample_layer;
-    
-    if(l.reverse) fprintf(stderr, "downsample         %2dx  %4d x%4d x%4d   ->  %4d x%4d x%4d\n", stride, w, h, c, l.out_w, l.out_h, l.out_c);
-    else fprintf(stderr, "upsample           %2dx  %4d x%4d x%4d   ->  %4d x%4d x%4d\n", stride, w, h, c, l.out_w, l.out_h, l.out_c);
-    return l;
-}
-
-void forward_route_layer(const layer l, network net)
-{
-    int i, j;
-    int offset = 0;
-    for(i = 0; i < l.n; ++i){
-        int index = l.input_layers[i];
-        float *input = net.layers[index].output;
-        int input_size = l.input_sizes[i];
-		copy_cpu(input_size, input, 1, l.output + offset, 1);
-        offset += input_size;
-    }
 }
 
 layer make_route_layer(int batch, int n, int *input_layers, int *input_sizes)
@@ -1759,7 +1414,7 @@ layer make_route_layer(int batch, int n, int *input_layers, int *input_sizes)
     l.inputs = outputs;
 
   //  l.output = (float *)calloc(outputs*batch, sizeof(float));;
-    l.forward = forward_route_layer;
+    l.forward = NULL;
 
     return l;
 }
@@ -1769,85 +1424,6 @@ static int entry_index(layer l, int batch, int location, int entry)
     int n =   location / (l.w*l.h);
     int loc = location % (l.w*l.h);
     return batch*l.outputs + n*l.w*l.h*(4+l.classes+1) + entry*l.w*l.h + loc;
-}
-
-void forward_yolo_layer(const layer l, network net)
-{
-    int i,j,b,t,n;
-
-	//char line[256];
-	//FILE *fp3;
-	//char filename[256];
-	//sprintf(filename, "yolo_layer_%d.txt", l.outputs);
-	//printf("YOLO_layer:outputs=%d,%s\n",l.outputs,filename);
- //   if( (fp3 = fopen(filename, "w")) == NULL)fprintf(stderr,"CANNOT OPEN\n");
-	//int x;
- //   for( x = 0; x < l.outputs; x++)
-	//{
-	//	sprintf(line, "%f\n", net.input[x]);
-	//	if(fputs(line,fp3)<0)fprintf(stderr,"write FILE failed\n");
- //   }
- //   fclose(fp3);
-
-    memcpy(l.output, net.input, l.outputs*l.batch*sizeof(float));
-
-    for (b = 0; b < l.batch; ++b){
-        for(n = 0; n < l.n; ++n){
-            int index = entry_index(l, b, n*l.w*l.h, 0);
-            activate_array(l.output + index, 2*l.w*l.h, LOGISTIC);
-            index = entry_index(l, b, n*l.w*l.h, 4);
-            activate_array(l.output + index, (1+l.classes)*l.w*l.h, LOGISTIC);
-        }
-    }
-
-	return ;
-
-}
-
-
-layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int classes)
-{
-    int i;
-    layer l;
-	memset(&l,0,sizeof(layer));
-
-    l.type = YOLO;
-
-    l.n = n;
-    l.total = total;
-    l.batch = batch;
-    l.h = h;
-    l.w = w;
-    l.c = n*(classes + 4 + 1);
-    l.out_w = l.w;
-    l.out_h = l.h;
-    l.out_c = l.c;
-    l.classes = classes;
-    //l.cost = (float *)calloc(1, sizeof(float));
-    l.biases = (float *)calloc(total*2, sizeof(float));
-    if(mask) l.mask = mask;
-    else{
-        l.mask = (int *)calloc(n, sizeof(int));
-        for(i = 0; i < n; ++i){
-            l.mask[i] = i;
-        }
-    }
-    //l.bias_updates = (float *)calloc(n*2, sizeof(float));
-    l.outputs = h*w*n*(classes + 4 + 1);
-    l.inputs = l.outputs;
-    //l.truths = 90*(4 + 1);
-    //l.delta = (float *)calloc(batch*l.outputs, sizeof(float));
-    l.output = (float *)calloc(batch*l.outputs, sizeof(float));
-    for(i = 0; i < total*2; ++i){
-        l.biases[i] = .5;
-    }
-
-    l.forward = forward_yolo_layer;
-
-    fprintf(stderr, "detection\n");
-    srand(0);
-
-    return l;
 }
 
 /////////////////praser begin
@@ -1972,90 +1548,6 @@ layer parse_convolutional(list *options, size_params params)
     return l;
 }
 
-int *parse_yolo_mask(char *a, int *num)
-{
-    int *mask = 0;
-    if(a){
-        int len = strlen(a);
-        int n = 1;
-        int i;
-        for(i = 0; i < len; ++i){
-            if (a[i] == ',') ++n;
-        }
-        mask = (int *)calloc(n, sizeof(int));
-        for(i = 0; i < n; ++i){
-            int val = atoi(a);
-            mask[i] = val;
-            a = strchr(a, ',')+1;
-        }
-        *num = n;
-    }
-    return mask;
-}
-
-layer parse_yolo(list *options, size_params params)
-{
-    int classes = option_find_int(options, "classes", 20);
-    int total = option_find_int(options, "num", 1);
-    int num = total;
-
-    char *a = option_find_str(options, "mask", 0);
-    int *mask = parse_yolo_mask(a, &num);
-    layer l = make_yolo_layer(params.batch, params.w, params.h, num, total, mask, classes);
-    assert(l.outputs == params.inputs);
-
-    l.max_boxes = option_find_int_quiet(options, "max",90);
-    l.jitter = option_find_float(options, "jitter", .2);
-
-    l.ignore_thresh = option_find_float(options, "ignore_thresh", .5);
-    l.truth_thresh = option_find_float(options, "truth_thresh", 1);
-    l.random = option_find_int_quiet(options, "random", 0);
-
-    a = option_find_str(options, "anchors", 0);
-    if(a){
-        int len = strlen(a);
-        int n = 1;
-        int i;
-        for(i = 0; i < len; ++i){
-            if (a[i] == ',') ++n;
-        }
-        for(i = 0; i < n; ++i){
-            float bias = atof(a);
-            l.biases[i] = bias;
-            a = strchr(a, ',')+1;
-        }
-    }
-    return l;
-}
-
-layer parse_shortcut(list *options, size_params params, network *net)
-{
-    char *l = option_find(options, "from");
-    int index = atoi(l);
-    if(index < 0) index = params.index + index;
-
-    int batch = params.batch;
-    layer from = net->layers[index];
-
-    layer s = make_shortcut_layer(batch, index, params.w, params.h, params.c, from.out_w, from.out_h, from.out_c);
-
-    char *activation_s = option_find_str(options, "activation", "linear");
-    ACTIVATION activation = get_activation(activation_s);
-    s.activation = activation;
-    s.alpha = option_find_float_quiet(options, "alpha", 1);
-    s.beta = option_find_float_quiet(options, "beta", 1);
-    return s;
-}
-
-layer parse_upsample(list *options, size_params params, network *net)
-{
-
-    int stride = option_find_int(options, "stride",2);
-    layer l = make_upsample_layer(params.batch, params.w, params.h, params.c, stride);
-    l.scale = option_find_float_quiet(options, "scale", 1);
-    return l;
-}
-
 layer parse_route(list *options, size_params params, network *net)
 {
     char *l = option_find(options, "layers");
@@ -2125,12 +1617,11 @@ void softmax_cpu(float *input, int n, int batch, int batch_offset, int groups, i
     }
 }
 
-void forward_region_layer(const layer l, network net)
+void forward_region_layer(const layer l, float *net_input)
 {
     int i,j,b,t,n;
-    memcpy(l.output, net.input, l.outputs*l.batch*sizeof(float));
+    memcpy(l.output, net_input, l.outputs*l.batch*sizeof(float));
 
-#ifndef GPU
     for (b = 0; b < l.batch; ++b){
         for(n = 0; n < l.n; ++n){
             int index = entry_index(l, b, n*l.w*l.h, 0);
@@ -2144,37 +1635,30 @@ void forward_region_layer(const layer l, network net)
 
 	if (l.softmax){
         int index = entry_index(l, 0, 0, l.coords + !l.background);
-        softmax_cpu(net.input + index, l.classes + l.background, l.batch*l.n, l.inputs/l.n, l.w*l.h, 1, l.w*l.h, 1, l.output + index);
+        softmax_cpu(net_input + index, l.classes + l.background, l.batch*l.n, l.inputs/l.n, l.w*l.h, 1, l.w*l.h, 1, l.output + index);
     }
 
-//	double time1,time2;
-//	time1 = what_time_is_it_now();
 //	char line[256];
 //	FILE *fp3;
 //	char filename[256];
-//	sprintf(filename, "yolo_region_input_float32_%d.txt", 13*13*425);
+//	sprintf(filename, "yolo_last_layer_output.txt");
 //	printf("YOLO_layer:outputs=%d,%s\n",l.outputs,filename);
-//    if( (fp3 = fopen(filename, "w")) == NULL)fprintf(stderr,"CANNOT OPEN\n");
+//	if( (fp3 = fopen(filename, "w")) == NULL)fprintf(stderr,"CANNOT OPEN\n");
 //	int x;
-//    for( x = 0; x < l.outputs; x++)
+//	for( x = 0; x < l.outputs; x++)
 //	{
-//		sprintf(line, "%f\n", net.input[x]);
+//		sprintf(line, "%f\n", net_input[x]);
 //		if(fputs(line,fp3)<0)fprintf(stderr,"write FILE failed\n");
-//    }
-//    fclose(fp3);
-//	time2 = what_time_is_it_now();
-//	printf("Predicted in %f seconds.\n",time2 - time1);
+//	}
+//	fclose(fp3);
 
-
-#endif
-
-    if(!net.train) return;
+    return;
 }
 
 layer make_region_layer(int batch, int w, int h, int n, int classes, int coords)
 {
     layer l;
-	memset(&l,0,sizeof(layer));
+    memset(&l,0,sizeof(layer));
     l.type = REGION;
 
     l.n = n;
@@ -2196,9 +1680,6 @@ layer make_region_layer(int batch, int w, int h, int n, int classes, int coords)
     for(i = 0; i < n*2; ++i){
         l.biases[i] = .5;
     }
-
-    l.forward = forward_region_layer;
-
     fprintf(stderr, "detection\n");
     srand(0);
 
@@ -2257,50 +1738,6 @@ layer parse_region(list *options, size_params params)
     return l;
 }
 
-void reorg_cpu(float *x, int w, int h, int c, int batch, int stride, int forward, float *out)
-{
-    int b,i,j,k;
-    int out_c = c/(stride*stride);
-
-    for(b = 0; b < batch; ++b){
-        for(k = 0; k < c; ++k){
-            for(j = 0; j < h; ++j){
-                for(i = 0; i < w; ++i){
-                    int in_index  = i + w*(j + h*(k + c*b));
-                    int c2 = k % out_c;
-                    int offset = k / out_c;
-                    int w2 = i*stride + offset % stride;
-                    int h2 = j*stride + offset / stride;
-                    int out_index = w2 + w*stride*(h2 + h*stride*(c2 + out_c*b));
-                    if(forward) out[out_index] = x[in_index];
-                    else out[in_index] = x[out_index];
-                }
-            }
-        }
-    }
-}
-
-void forward_reorg_layer(const layer l, network net)
-{
-    int i;
-    //if(l.flatten){
-    //    memcpy(l.output, net.input, l.outputs*l.batch*sizeof(float));
-    //    if(l.reverse){
-    //        flatten(l.output, l.w*l.h, l.c, l.batch, 0);
-    //    }else{
-    //        flatten(l.output, l.w*l.h, l.c, l.batch, 1);
-    //    }
-    //} else if (l.extra) {
-    //    for(i = 0; i < l.batch; ++i){
-    //        copy_cpu(l.inputs, net.input + i*l.inputs, 1, l.output + i*l.outputs, 1);
-    //    }
-    //} else if (l.reverse){
-    //    reorg_cpu(net.input, l.w, l.h, l.c, l.batch, l.stride, 1, l.output);
-    //} else {
-        reorg_cpu(net.input, l.w, l.h, l.c, l.batch, l.stride, 0, l.output);
-    //}
-}
-
 layer make_reorg_layer(int batch, int w, int h, int c, int stride, int reverse, int flatten, int extra)
 {
     layer l;
@@ -2338,10 +1775,6 @@ layer make_reorg_layer(int batch, int w, int h, int c, int stride, int reverse, 
         fprintf(stderr, "reorg              /%2d  %4d x%4d x%4d   ->  %4d x%4d x%4d\n",  stride, w, h, c, l.out_w, l.out_h, l.out_c);
     }
     int output_size = l.outputs * batch;
-    //l.output =  (float *)calloc(output_size, sizeof(float));
-
-    l.forward = forward_reorg_layer;
-
 
     return l;
 }
@@ -2364,47 +1797,10 @@ layer parse_reorg(list *options, size_params params)
     return layer;
 }
 
-void forward_maxpool_layer(layer l, network net)
-{
-    int b,i,j,k,m,n;
-    int w_offset = -l.pad;
-    int h_offset = -l.pad;
-
-    int h = l.out_h;
-    int w = l.out_w;
-    int c = l.c;
-
-    for(b = 0; b < l.batch; ++b){
-        for(k = 0; k < c; ++k){
-            for(i = 0; i < h; ++i){
-                for(j = 0; j < w; ++j){
-                    int out_index = j + w*(i + h*(k + c*b));
-                    float max = -FLT_MAX;
-                    int max_i = -1;
-                    for(n = 0; n < l.size; ++n){
-                        for(m = 0; m < l.size; ++m){
-                            int cur_h = h_offset + i*l.stride + n;
-                            int cur_w = w_offset + j*l.stride + m;
-                            int index = cur_w + l.w*(cur_h + l.h*(k + b*l.c));
-                            int valid = (cur_h >= 0 && cur_h < l.h &&
-                                         cur_w >= 0 && cur_w < l.w);
-                            float val = (valid != 0) ? net.input[index] : -FLT_MAX;
-                            max_i = (val > max) ? index : max_i;
-                            max   = (val > max) ? val   : max;
-                        }
-                    }
-                    l.output[out_index] = max;
-                    l.indexes[out_index] = max_i;
-                }
-            }
-        }
-    }
-}
-
 layer make_maxpool_layer(int batch, int h, int w, int c, int size, int stride, int padding)
 {
     layer l;
-	memset(&l,0,sizeof(layer));
+    memset(&l,0,sizeof(layer));
     l.type = MAXPOOL;
     l.batch = batch;
     l.h = h;
@@ -2574,23 +1970,15 @@ network *parse_network_cfg(char *filename)
         s = (section *)n->val;
         options = s->options;
         //layer l = {0};
-		layer l;
-		memset(&l,0,sizeof(layer));
+	layer l;
+	memset(&l,0,sizeof(layer));
         LAYER_TYPE lt = string_to_layer_type(s->type);
         if(lt == CONVOLUTIONAL){
             l = parse_convolutional(options, params);
-        }else if(lt == YOLO){
-            l = parse_yolo(options, params);
         }else if(lt == ROUTE){
             l = parse_route(options, params, net);
-        }else if(lt == UPSAMPLE){
-            l = parse_upsample(options, params, net);
-        }else if(lt == SHORTCUT){
-            l = parse_shortcut(options, params, net);
         }else if(lt == REGION){
             l = parse_region(options, params);
-        }else if(lt == YOLO){
-            l = parse_yolo(options, params);
         }else if(lt == MAXPOOL){
             l = parse_maxpool(options, params);
         }else if(lt == REORG){
@@ -2604,9 +1992,6 @@ network *parse_network_cfg(char *filename)
         l.onlyforward = option_find_int_quiet(options, "onlyforward", 0);
         l.stopbackward = option_find_int_quiet(options, "stopbackward", 0);
         l.dontsave = option_find_int_quiet(options, "dontsave", 0);
-//        l.dontload = option_find_int_quiet(options, "dontload", 0);
-      //  l.dontloadscales = option_find_int_quiet(options, "dontloadscales", 0);
-        //l.learning_rate_scale = option_find_float_quiet(options, "learning_rate", 1);
         l.smooth = option_find_float_quiet(options, "smooth", 0);
         option_unused(options);
         net->layers[count] = l;
@@ -2625,14 +2010,8 @@ network *parse_network_cfg(char *filename)
     layer out = get_network_output_layer(net);
     net->outputs = out.outputs;
     net->output = out.output;
-    //net->input = (float *)calloc(net->inputs*net->batch, sizeof(float));
-
 	workspace_size = 0;//donot calloc workspace
-    //if(workspace_size){
-    //    //printf("%ld\n", workspace_size);
-    //    net->workspace = (float *)calloc(1, workspace_size);
 
-    //}
     return net;
 }
 
@@ -2670,63 +2049,6 @@ list *read_cfg(char *filename)
     fclose(file);
     return options;
 }
-
-void load_convolutional_weights(layer l, FILE *fp)
-{
-    int num = l.nweights;
-    fread(l.biases, sizeof(float), l.n, fp);
-    if (l.batch_normalize){
-        fread(l.scales, sizeof(float), l.n, fp);
-        fread(l.rolling_mean, sizeof(float), l.n, fp);
-        fread(l.rolling_variance, sizeof(float), l.n, fp);
-    }
-    fread(l.weights, sizeof(float), num, fp);
-
-}
-
-
-void load_weights_upto(network *net, char *filename, int start, int cutoff)
-{
-    fprintf(stderr, "Loading weights from %s...", filename);
-    fflush(stdout);
-    FILE *fp = fopen(filename, "rb");
-    if(!fp) file_error(filename);
-
-    int major;
-    int minor;
-    int revision;
-    fread(&major, sizeof(int), 1, fp);
-    fread(&minor, sizeof(int), 1, fp);
-    fread(&revision, sizeof(int), 1, fp);
-	printf("major=%d;minor=%d;revision=%d\n",major,minor,revision);// 0 2 0
-	printf("if true ro false:%d\n",(major*10 + minor) >= 2 && major < 1000 && minor < 1000);
-    if ((major*10 + minor) >= 2 && major < 1000 && minor < 1000){
-        //fread(net->seen, sizeof(size_t), 1, fp);
-		fread(net->seen, sizeof(size_t), 1, fp);
-		fread(net->seen, sizeof(size_t), 1, fp);
-	}else {
-        int iseen = 0;
-        fread(&iseen, sizeof(int), 1, fp);
-        *net->seen = iseen;
-    }
-
-	//printf("sizeof(size_t)=%u\n",sizeof(size_t));// in my PC is 4
-
-    int i;
-    for(i = start; i < net->n && i < cutoff; ++i){
-        layer l = net->layers[i];
-        if(l.type == CONVOLUTIONAL){
-            load_convolutional_weights(l, fp);
-        }
-    }
-    fprintf(stderr, "Done!\n");
-    fclose(fp);
-}
-
-void load_weights(network *net, char *filename)
-{
-    load_weights_upto(net, filename, 0, net->n);
-}
 /////////////////praser end
 
 /////////////////network begin
@@ -2748,13 +2070,9 @@ load_args get_base_args(network *net)
     return args;
 }
 
-network *load_network(char *cfg, char *weights, int clear)
+network *load_network(char *cfg)
 {
     network *net = parse_network_cfg(cfg);
-    //if(weights && weights[0] != 0){
-    //    load_weights(net, weights);
-    //}
-    if(clear) (*net->seen) = 0;
     return net;
 }
 
@@ -3116,9 +2434,6 @@ void free_detections(detection *dets, int n)
     free(dets);
 }
 
-int network_width(network *net){return net->w;}
-int network_height(network *net){return net->h;}
-
 layer get_network_output_layer(network *net)
 {
     int i;
@@ -3126,43 +2441,6 @@ layer get_network_output_layer(network *net)
         if(net->layers[i].type != COST) break;
     }
     return net->layers[i];
-}
-
-void free_network(network *net)
-{
-    int i;
-    for(i = 0; i < net->n; ++i){
-        free_layer(net->layers[i]);
-    }
-    free(net->layers);
-    if(net->input) free(net->input);
-    if(net->truth) free(net->truth);
-
-    free(net);
-}
-
-layer network_output_layer(network *net)
-{
-    int i;
-    for(i = net->n - 1; i >= 0; --i){
-        if(net->layers[i].type != COST) break;
-    }
-    return net->layers[i];
-}
-
-int network_inputs(network *net)
-{
-    return net->layers[0].inputs;
-}
-
-int network_outputs(network *net)
-{
-    return network_output_layer(net).outputs;
-}
-
-float *network_output(network *net)
-{
-    return network_output_layer(net).output;
 }
 
 //////////////////network end
@@ -3485,597 +2763,10 @@ void draw_detections(image im, detection *dets, int num, float thresh, char **na
         }
     }
 }
+
 //////////////////////image end
 
-
-//////////////////////////HLS begin
-
-//#define MIN(x,y) ((x)<(y)?(x):(y))
-//#define S 2
-//#define K 3
-//
-//#define Tn 1
-//#define Tm 16
-//#define Tr 13
-//#define Tc 13
-//#define OnChipIB_Width  ((Tc-1)*S+K)
-//#define OnChipIB_Height ((Tr-1)*S+K)
-
-#define MAX(x,y) ((x)>(y)?(x):(y))
-#define MIN(x,y) ((x)<(y)?(x):(y))
-#define S 2
-#define K 3
-
-#define Tn 4
-#define Tm 32
-#define Tr 26
-#define Tc 26
-#define OnChipIB_Width  ((Tc-1)*S+K)
-#define OnChipIB_Height ((Tr-1)*S+K)
-#define ALPHA_BETA_MAX_NUM 1024
-#define INTERWIDTH 20
-
-void copy_mem2dev(uint8_t *orig,uint32_t byte_num, unsigned long in_buffer)
-{
-	int fd = open("/dev/mem", O_RDWR);
-	unsigned char *virtual_addr;
-	uint32_t RequestByteNum;// must page
-	if(byte_num%(4*1024)==0)
-		RequestByteNum = byte_num;
-	else
-	{
-		RequestByteNum = (byte_num/(4*1024)+1)*(4*1024);
-	}
-	virtual_addr = (unsigned char *)mmap(NULL, RequestByteNum, PROT_READ | PROT_WRITE, MAP_SHARED, fd, (off_t)in_buffer);
-	if(virtual_addr == MAP_FAILED)
-	{
-		perror("Virtual_addr_in mappong for absolute memory access failed!\n");
-		return;
-	}
-	memcpy(virtual_addr,orig,byte_num);
-
-	munmap((void *)virtual_addr, byte_num);
-	close(fd);
-}
-
-void copy_dev2mem(uint8_t *dst,uint32_t byte_num, unsigned long in_buffer)
-{
-	int fd = open("/dev/mem", O_RDWR);
-	unsigned char *virtual_addr;
-	uint32_t RequestByteNum;// must page
-	if(byte_num%(4*1024)==0)
-		RequestByteNum = byte_num;
-	else
-	{
-		RequestByteNum = (byte_num/(4*1024)+1)*(4*1024);
-	}
-		virtual_addr = (unsigned char *)mmap(NULL, RequestByteNum, PROT_READ | PROT_WRITE, MAP_SHARED, fd, (off_t)in_buffer);
-	if(virtual_addr == MAP_FAILED)
-	{
-		perror("Virtual_addr_in mappong for absolute memory access failed!\n");
-		return;
-	}
-	memcpy((uint8_t *)dst,virtual_addr,byte_num);
-
-	munmap((void *)virtual_addr, byte_num);
-	close(fd);
-}
-
-int copy_file2mem(char *bin_file,uint32_t byte_num,unsigned long in_buffer)
-{
-	unsigned char *buffer = (unsigned char *)malloc(1024*1024);
-	if(buffer==NULL){
-		printf("cannot malloc buffer 1024*1024 byte\n");
-		return -1;
-	}
-
-	FILE *fp;
-	if( (fp = fopen(bin_file, "rb")) == NULL)fprintf(stderr,"CANNOT OPEN bin_file\n");
-	int rd_num;
-	unsigned long offset = 0;
-	while(rd_num = fread(buffer, sizeof(unsigned char), 1024*1024, fp))
-	{
-		copy_mem2dev(buffer,rd_num, in_buffer+offset);
-//		printf("rd_num=%d\n",rd_num);
-		offset += rd_num;
-	}
-	printf("copy_file2mem offset=%d\n",offset);
-	fclose(fp);
-
-	free(buffer);
-
-
-	return 0;
-}
-
-int copy_mem2file(char *bin_file,uint32_t byte_num,unsigned long in_buffer)
-{
-	void *buffer = malloc(1024*1024);
-	if(buffer==NULL){
-		printf("cannot malloc buffer 1024*1024 byte\n");
-		return -1;
-	}
-
-	FILE *fp;
-	if( (fp = fopen(bin_file, "wb")) == NULL)fprintf(stderr,"CANNOT OPEN bin_file\n");
-
-	int x = byte_num;
-	int addbyte;
-	unsigned long offset = 0;
-	while(addbyte=((x<1024*1024)?x:(1024*1024)))
-	{
-		copy_dev2mem((uint8_t *)buffer,addbyte, in_buffer+offset);
-		fwrite(buffer , sizeof(unsigned char), addbyte, fp);
-		x -= addbyte;
-		offset += addbyte;
-	}
-	printf("copy_mem2file offset=%d\n",offset);
-
-
-	fclose(fp);
-
-	free(buffer);
-
-	return 0;
-}
-
-//double what_time_is_it_now()
-//{
-//    struct timeval time;
-//    if (gettimeofday(&time,NULL)){
-//        return 0;
-//    }
-//    return (double)time.tv_sec + (double)time.tv_usec * .000001;
-//}
-
-int YOLO2_FPGA(int In_Address,int Out_Address,int Weight_offset,int Beta_offset,const int InFM_num,const int OutFM_num,
-							  const int Kernel_size,const int Kernel_stride,
-							  const int Input_w,const int Input_h,const int Output_w,const int Output_h,
-							  const int Padding,const bool IsNL,const bool IsBN,
-							  const int TM,const int TN,const int TR,const int TC,
-							  const int mLoops,const int nLoops,const int rLoops,const int cLoops,const int LayerType,
-							  int InputQ,int OutputQ,int WeightQ,int BetaQ,unsigned int WEIGHT_BASE,unsigned int BETA_BASE)
-{
-
-	int T2Rate;
-	switch(Input_w)
-	{
-		case 26:
-			T2Rate = 2;
-			break;
-		case 13:
-			T2Rate = 4;
-			break;
-		default:
-			T2Rate = 1;
-			break;
-	}
-	const unsigned char TRow = (TR-1)*Kernel_stride+Kernel_size;
-	int trow_loops = (int)ceil(((float)TRow/T2Rate));
-
-	unsigned int ap_idle;
-	unsigned int ap_done;
-
-	unsigned long int PhysicalAddress = YOLO2_BASEADDR;
-	int map_len = 0x180;
-	int fd = open("/dev/mem", O_RDWR);
-
-	unsigned char *xbase_address;
-	xbase_address = (unsigned char *)mmap(NULL, map_len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, (off_t)PhysicalAddress);
-	if(xbase_address == MAP_FAILED)
-	{
-		perror("1:Init Mapping memory for absolute memory access failed.\n");
-		return -1;
-	}
-
-	while(1)
-	{
-		ap_idle = ((ReadReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_AP_CTRL) >> 2) && 0x1);
-		if(ap_idle)
-			break;
-	}
-
-//#define WEIGHT_BASE (0x10000000)
-//#define BETA_BASE (0x1C25F000)
-
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_INPUT_R_DATA,  In_Address);
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_INPUT1_DATA,  In_Address);
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_INPUT2_DATA,  In_Address);
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_INPUT3_DATA,  In_Address);
-
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_OUTPUT_R_DATA, Out_Address);
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_OUTPUT1_DATA, Out_Address);
-//	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_OUTPUT2_DATA, Out_Address);
-//	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_OUTPUT3_DATA, Out_Address);
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_WEIGHT_DATA,   WEIGHT_BASE + Weight_offset*4);
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_BETA_DATA,     BETA_BASE + Beta_offset*4);
-
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_INFM_NUM_DATA, InFM_num);
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_OUTFM_NUM_DATA, OutFM_num);
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_KERNEL_SIZE_DATA, Kernel_size);
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_KERNEL_STRIDE_DATA, Kernel_stride);
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_INPUT_W_DATA, Input_w);
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_INPUT_H_DATA, Input_h);
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_OUTPUT_W_DATA, Output_w);
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_OUTPUT_H_DATA, Output_h);
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_PADDING_DATA, Padding);
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_ISNL_DATA, IsNL);
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_ISBN_DATA, IsBN);
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_TM_DATA, TM);
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_TN_DATA, TN);
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_TR_DATA, TR);
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_TC_DATA, TC);
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_MLOOPS_DATA, mLoops);
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_NLOOPS_DATA, nLoops);
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_RLOOPS_DATA, rLoops);
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_CLOOPS_DATA, cLoops);
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_LAYERTYPE_DATA, LayerType);
-
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_INPUTQ_DATA, InputQ);
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_OUTPUTQ_DATA, OutputQ);
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_WEIGHTQ_DATA, WeightQ);
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_BETAQ_DATA, BetaQ);
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_TROW_LOOPS_DATA, trow_loops);
-
-//	double time1,time2;
-//	time1 = what_time_is_it_now();
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_GIE, 0x0);
-	WriteReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_AP_CTRL, 0x1);//Start
-	while(1)
-	{
-		ap_done = ((ReadReg(xbase_address, XYOLO2_FPGA_CTRL_BUS_ADDR_AP_CTRL) >> 1) && 0x1);
-		if(ap_done)
-			break;
-	}
-//	time2 = what_time_is_it_now();
-//	printf("START TO DONE in %f seconds.\n",time2 - time1);
-
-	munmap((void *)xbase_address, map_len);
-	close(fd);
-
-	return 0;
-
-}
-
-////////////////////////////////////////////////////////PL v3 end
-
-
-void yolov2_hls_ps(network *net, float *input,unsigned int WEIGHT_BASE,unsigned int BETA_BASE,unsigned int MEM_BASE)
-{
-	int x;
-
-	network orig = *net;
-	net->input = input;
-
-	int weight_offset[32] = {864, 18432, 73728, 8192, 73728,
-		294912, 32768, 294912, 1179648, 131072, 1179648, 131072,
-		1179648, 4718592, 524288, 4718592, 524288, 4718592, 9437184,
-		9437184, 32768, 11796480, 435200, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-	int beta_offset[32] = {32, 64, 128, 64, 128, 256, 128, 256, 512, 256, 512, 256, 512, 1024,
-		512, 1024, 512, 1024, 1024, 1024, 64, 1024, 425, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-	int offset_index = 0;
-
-	double time1,time2;
-
-	time1 = what_time_is_it_now();
-	copy_file2mem("weightsv2_comb_reorg_ap16.bin",(203767168)/2,WEIGHT_BASE);//->C253D80
-	printf("yolov2_w copy ok\n");
-	copy_file2mem("biasv2_comb_ap16.bin",(43044+4)/2,BETA_BASE);//->C268724 203812864 = C25F000
-	printf("yolov2_b copy ok\n");
-	time2 = what_time_is_it_now();
-	printf("Predicted in %f seconds.\n",time2 - time1);
-
-	float *region_buf = (float *)calloc(13*13*432,sizeof(float));
-	if(!region_buf) printf("region_buf calloc fail\n");
-
-#define MEM_LEN (416*416*32*2+208*208*32*2)
-	unsigned int Memory_top = MEM_BASE;
-	unsigned int Memory_bottom = MEM_BASE + MEM_LEN;
-
-	int in_ptr[32];
-	int out_ptr[32];
-
-/////////////////////
-#define QNUM 23
-
-	int inputQ[QNUM+1];
-	int weightQ[QNUM];
-	int betaQ[QNUM];
-	FILE *Qin;
-
-	Qin = fopen("yolov2_ap16_inout_maxQ_24.bin","rb");
-	if(!Qin) file_error("Qin error 1\n");
-	fread(inputQ,sizeof(int),QNUM+1,Qin);
-	fclose(Qin);
-
-	if(inputQ[20] < inputQ[21])
-		inputQ[21] = inputQ[20];
-	else
-		inputQ[20] = inputQ[21];
-
-
-	for(x=0;x<QNUM+1;x++)
-		printf("[%2d inputQ]=%2d\n",x,inputQ[x]);
-
-	Qin = fopen("weightsv2_comb_reorg_ap16_maxQ_23.bin","rb");
-	if(!Qin) file_error("Qin error 2\n");
-	fread(weightQ,sizeof(int),QNUM,Qin);
-	fclose(Qin);
-
-	for(x=0;x<QNUM;x++)
-		printf("[%2d weightQ]=%2d\n",x,weightQ[x]);
-
-	Qin = fopen("biasv2_comb_ap16_maxQ_23.bin","rb");
-	if(!Qin) file_error("Qin error 4\n");
-	fread(betaQ,sizeof(int),QNUM,Qin);
-	fclose(Qin);
-
-	for(x=0;x<QNUM;x++)
-		printf("[%2d betaQ]=%2d\n",x,betaQ[x]);
-
-	const double LastLayerOutputPara = pow(2.0,-inputQ[23]);
-/////////////////////
-
-#define ROUTE16_LEN (26*26*512*4/2)
-#define CONV27_LEN (13*13*256*4/2)
-#define CONV24_LEN (13*13*1024*4/2)
-
-	int *input_tmp_mem = (int *)calloc(416*416*32/2,sizeof(int));
-	if(!input_tmp_mem) file_error("input_tmp_mem error \n");
-	int *region_input_buffer = (int *)calloc(13*13*432*4/2,sizeof(int));
-	if(!region_input_buffer) file_error("region_input_buffer error \n");
-
-
-	int tmp_in;
-	short current_in,next_in;
-	bool NextPixelInFlag = true;
-	int InputPixelOffset = 0;
-	for(x=0;x<416*416*3;x++)//1st Layer input Q14
-	{
-		if(NextPixelInFlag)
-		{
-			current_in = (short)(input[x]*pow(2.0,14));
-			NextPixelInFlag = false;
-		}
-		else
-		{
-			next_in = (short)(input[x]*pow(2.0,14));
-			tmp_in = (next_in<<16) + (current_in);
-			input_tmp_mem[InputPixelOffset] = tmp_in;
-			InputPixelOffset++;
-			NextPixelInFlag = true;
-		}
-	}
-	copy_mem2dev((uint8_t *)input_tmp_mem,416*416*3*4/2, MEM_BASE);
-	free(input_tmp_mem);
-
-	for(x=0;x<18;x++)
-	{
-		if(x%2==0)
-		{
-			in_ptr[x] = Memory_top;
-			out_ptr[x] = Memory_bottom - net->layers[x].outputs*4/2 ;
-		}
-		else
-		{
-			in_ptr[x] = out_ptr[x-1];
-			out_ptr[x] = Memory_top;
-		}
-	}
-
-	for(x=18;x<25;x++)
-	{
-		if(x%2==0)
-		{
-			in_ptr[x] = Memory_top;
-			out_ptr[x] = Memory_bottom - ROUTE16_LEN - net->layers[x].outputs*4/2;
-		}else
-		{
-			in_ptr[x] = out_ptr[x-1];
-			out_ptr[x] = Memory_top;
-		}
-	}
-
-	in_ptr[26] = Memory_bottom - ROUTE16_LEN;
-	out_ptr[26] = Memory_top;
-
-	in_ptr[27] = Memory_top;
-	out_ptr[27] = Memory_bottom - ROUTE16_LEN - CONV24_LEN - CONV27_LEN;
-
-	in_ptr[29] = out_ptr[27];
-	out_ptr[29] = Memory_top;
-
-	in_ptr[30] = Memory_top;
-	out_ptr[30] = Memory_bottom - (net->layers[30].outputs + 13*13*3)*4/2;
-
-	if(out_ptr[30]%(4*1024)!=0)
-	{
-		out_ptr[30] = (out_ptr[30]/(4*1024)-1)*(4*1024);
-	}
-
-	in_ptr[31] = out_ptr[30];
-
-    network netp = *net;
-    int i;
-	int j;
-	int woffset = 0;
-	int boffset = 0;
-	int TR,TC,TM,TN;
-	int output_w,output_h;
-	int rLoops,cLoops,mLoops,nLoops;
-	double time_sum = 0.0;
-	int INPUTQ;
-
-    for(i = 0; i < netp.n; ++i)
-	{
-        netp.index = i;
-        layer l = netp.layers[i];
-		printf("Layer[%2d]: ",i);
-		switch(l.type)
-		{
-			case CONVOLUTIONAL:
-				printf("outputMemory:%8d;BN=%d;Activation=%d;conv  %5d %2d x%2d /%2d  %4d x%4d x%4d   ->  %4d x%4d x%4d  %5.3f BFLOPs\n",l.outputs,l.batch_normalize,l.activation, l.n, l.size, l.size, l.stride, l.w, l.h, l.c, l.out_w, l.out_h, l.out_c, (2.0 * l.n * l.size*l.size*l.c/l.groups * l.out_h*l.out_w)/1000000000.);
-
-				output_w = (l.w - l.size + 2*l.pad)/l.stride + 1 ;
-				output_h = (l.h - l.size + 2*l.pad)/l.stride + 1 ;
-
-				TR = MIN(((OnChipIB_Height-l.size)/l.stride+1),Tr);//keep Kernel_stride>=1
-				TR = MIN(output_h,TR);
-				TC = MIN(((OnChipIB_Width-l.size)/l.stride+1),Tc);
-				TC = MIN(output_w,TC);
-				TM = MIN(l.n,Tm);
-				TN = MIN(l.c,Tn);
-
-				rLoops = (int)ceil(((float)output_h)/TR);
-				cLoops = (int)ceil(((float)output_w)/TC);
-				mLoops = (int)ceil(((float)l.n)/TM);
-			    nLoops = (int)ceil(((float)l.c)/TN);
-
-				INPUTQ = inputQ[offset_index];
-				if(i==26)
-					INPUTQ = inputQ[12];
-
-			    time1 = what_time_is_it_now();
-				YOLO2_FPGA(in_ptr[i],out_ptr[i],woffset/2,boffset/2,
-					l.c,l.n,l.size,
-					l.stride,l.w,l.h,output_w,output_h,
-					l.pad,l.activation==LEAKY?1:0,l.batch_normalize?1:0,
-					TM,TN,TR,TC,
-					mLoops,nLoops,rLoops,cLoops,0,
-					INPUTQ,inputQ[offset_index+1],weightQ[offset_index],betaQ[offset_index],
-					WEIGHT_BASE,BETA_BASE);
-				time2 = what_time_is_it_now();
-				printf("Predicted in %f seconds.\n",time2 - time1);
-				time_sum += (time2 - time1);
-
-				woffset += weight_offset[offset_index];
-				boffset += beta_offset[offset_index];
-				offset_index++;
-
-				break;
-			case MAXPOOL:
-				printf("outputMemory:%8d;max          %d x %d / %d  %4d x%4d x%4d   ->  %4d x%4d x%4d\n",l.outputs, l.size, l.size, l.stride, l.w, l.h, l.c, l.out_w, l.out_h, l.out_c);
-
-				output_w = l.out_h;
-				output_h = l.out_w;
-
-				TR = MIN(((OnChipIB_Height-l.size)/l.stride+1),Tr);//keep Kernel_stride>=1
-				TC = MIN(((OnChipIB_Width-l.size)/l.stride+1),Tc);
-
-				TR = MIN(output_h,TR);
-				TC = MIN(output_w,TC);
-				TM = MIN(Tm,Tn);
-				TM = MIN(l.c,TM);
-				TN = TM;
-
-				rLoops = (int)ceil(((float)output_h)/TR);
-				cLoops = (int)ceil(((float)output_w)/TC);
-				mLoops = (int)ceil(((float)l.c)/TM);
-
-				time1 = what_time_is_it_now();
-				YOLO2_FPGA(in_ptr[i],out_ptr[i],NULL,NULL,l.c,l.c,
-					l.size,l.stride,l.w,l.h,output_w,output_h,
-					0,0,0,TM,TN,TR,TC,mLoops,1,rLoops,cLoops,1,
-					inputQ[offset_index],inputQ[offset_index],INTERWIDTH,INTERWIDTH,
-					WEIGHT_BASE,BETA_BASE);
-				time2 = what_time_is_it_now();
-				printf("Predicted in %f seconds.\n",time2 - time1);
-				time_sum += (time2 - time1);
-
-				break;
-			case REORG:
-				printf("outputMemory:%8d;reorg              /%2d  %4d x%4d x%4d   ->  %4d x%4d x%4d\n",l.outputs,  l.stride, l.w, l.h, l.c, l.out_w, l.out_h, l.out_c);
-
-				output_w = 26;
-				output_h = 32*13;
-
-				TR = MIN(((OnChipIB_Height-l.stride)/l.stride+1),Tr);//keep Kernel_stride>=1
-				TR = MIN(output_h,TR);
-				TC = MIN(((OnChipIB_Width-l.stride)/l.stride+1),Tc);
-				TC = MIN(output_w,TC);
-				TM = 4;
-				TN = TM;
-
-				rLoops = (int)ceil(((float)output_h)/TR);
-				cLoops = (int)ceil(((float)output_w)/TC);
-				mLoops = 1;
-
-				time1 = what_time_is_it_now();
-				YOLO2_FPGA(in_ptr[i],out_ptr[i],NULL,NULL,1,4,
-							  l.stride,l.stride,52,32*26,output_w,output_h,
-							  0,0,0,TM,TN,TR,TC,mLoops,1,rLoops,cLoops,2,
-							  inputQ[offset_index],inputQ[offset_index],INTERWIDTH,INTERWIDTH,
-							  WEIGHT_BASE,BETA_BASE);
-				time2 = what_time_is_it_now();
-				printf("Predicted in %f seconds.\n",time2 - time1);
-				time_sum += (time2 - time1);
-
-				break;
-			case ROUTE:
-				printf("outputMemory:%8d;route ",l.outputs);
-				for(j = 0; j < l.n; ++j){
-					printf(" %d", l.input_layers[j]);
-				}
-				printf("\n");
-				break;
-			case REGION:
-//				first=time(NULL);
-				time1 = what_time_is_it_now();
-				printf("outputMemory:%8d;Detection\n",l.outputs);
-				copy_dev2mem((uint8_t *)region_input_buffer,13*13*432*4/2, in_ptr[i]);
-
-				bool NextPixelFlag = true;
-				int OutputPixelOffset = 0;
-				short current_p,next_p,output_p;
-				int *Output_ptr = (int *)(region_input_buffer);
-				for(j=0;j<l.outputs;j++)
-				{
-					if(NextPixelFlag)
-					{
-						int tmp_p = Output_ptr[OutputPixelOffset];
-						OutputPixelOffset++;
-						current_p = tmp_p;
-						next_p = tmp_p >> 16;
-						output_p = current_p;
-						NextPixelFlag = false;
-					}else
-					{
-						output_p = next_p;
-						NextPixelFlag = true;
-					}
-					region_buf[j] = output_p*LastLayerOutputPara;
-				}
-
-				netp.input = region_buf;
-				//netp.input = in_ptr[i];
-				forward_region_layer(l,netp);
-
-				time2 = what_time_is_it_now();
-				printf("Predicted in %f seconds.\n",time2 - time1);
-				time_sum += (time2 - time1);
-
-				break;
-		}
-
-		netp.input = l.output;
-
-    }
-
-    printf("TIME_SUM Predicted in %f seconds.\n",time_sum);
-
-	*net = orig;
-
-	free(region_input_buffer);
-	free(region_buf);
-//	free(Memory_buf);
-//	free(Weight_buf);
-//	free(Alpha_buf);
-//	free(Beta_buf);
-
-}
-
-
-//////////////////////////HLS end
+#include "yolov2_acc_sim.h"
 
 #endif
 
