@@ -160,8 +160,29 @@
 #define XYOLO2_FPGA_CTRL_BUS_ADDR_LAYERTYPE_DATA     0xc0
 #define XYOLO2_FPGA_CTRL_BUS_BITS_LAYERTYPE_DATA     32
 
+//#define YOLO2_BASEADDR 0x43c00000
+//#define WEIGHT_BASE (0x10000000) //203767168 = C253D80
+//#define BETA_BASE (0x1C25F000) //43044 = 0xA824
+//#define MEM_BASE (0x1C26A000) //416*416*32*4+208*208*32*4=173,056+43,264= 216,320*128 = 0x1A6_8000
 
-#define YOLO2_BASEADDR 0x43c00000
+#define YOLO2_BASEADDR 0xA0000000
+#define WEIGHT_BASE (0x60000000) //203767168 = C253D80
+#define BETA_BASE (0x6C25F000) //43044 = 0xA824
+#define MEM_BASE (0x6C26A000) //416*416*32*4+208*208*32*4=173,056+43,264= 216,320*128 = 0x1A6_8000
+
+#define Tn 4
+#define Tm 28
+#define Tr 26
+#define Tc 32
+
+#define MAX(x,y) ((x)>(y)?(x):(y))
+#define MIN(x,y) ((x)<(y)?(x):(y))
+#define S 2
+#define K 3
+
+#define OnChipIB_Width  ((Tc-1)*S+K)
+#define OnChipIB_Height ((Tr-1)*S+K)
+#define MAX_BETA_LENGTH (1024)
 
 #define WriteReg(BaseAddress, RegOffset, Data) *(volatile unsigned int*)((BaseAddress) + (RegOffset)) = (Data)
 #define ReadReg(BaseAddress, RegOffset) *(volatile unsigned int*)((BaseAddress) + (RegOffset))

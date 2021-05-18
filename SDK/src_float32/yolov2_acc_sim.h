@@ -10,24 +10,6 @@ double what_time_is_it_now()
     return (double)time.tv_sec + (double)time.tv_usec * .000001;
 }
 
-///////////////////////////////////////////////////////////////////////20181229 anti-reorg start => KxKxTmxTn
-#define MAX(x,y) ((x)>(y)?(x):(y))
-#define MIN(x,y) ((x)<(y)?(x):(y))
-#define S 2
-#define K 3
-
-#define Tn 4
-#define Tm 23
-#define Tr 26
-#define Tc 32
-#define OnChipIB_Width  ((Tc-1)*S+K)
-#define OnChipIB_Height ((Tr-1)*S+K)
-#define MAX_BETA_LENGTH (1024)
-
-#define WEIGHT_BASE (0x10000000) //203767168 = C253D80
-#define BETA_BASE (0x1C25F000) //43044 = 0xA824
-#define MEM_BASE (0x1C26A000) //416*416*32*4+208*208*32*4=173,056+43,264= 216,320*128 = 0x1A6_8000
-
 int YOLO2_FPGA(unsigned int In_Address, unsigned int Out_Address, unsigned int Weight_offset, unsigned int Beta_offset,
 							   int IFM_num, int OFM_num, int Ksize, int Kstride,
 							   int Input_w, int Input_h, int Output_w, int Output_h, int Padding, bool IsNL, bool IsBN,
