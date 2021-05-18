@@ -10,3 +10,5 @@ Follow below step:
 6. export block_design
 7. get the block_design design_1.tcl and bitstream design_1_wrapper.bit for pynq (existed in generated_demo)
 8. change two files to the same name, like yolov2.tcl and yolov2.bit for pynq
+
+__please check the vivado 2019.2 prj.(2021-05-19)__
