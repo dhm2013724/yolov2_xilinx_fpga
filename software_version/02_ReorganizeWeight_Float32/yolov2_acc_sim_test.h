@@ -7,24 +7,19 @@
 
 #define MAX(x,y) ((x)>(y)?(x):(y))
 #define MIN(x,y) ((x)<(y)?(x):(y))
+
 #define S 2
 #define K 3
-
+#define MAX_BETA_LENGTH 1024
 #define Tn 4
-#define Tm 23
+#define Tm 28
 #define Tr 26
 #define Tc 32
-#define OnChipIB_Width  ((Tc-1)*S+K)
-#define OnChipIB_Height ((Tr-1)*S+K)
-#define MAX_BETA_LENGTH (1024)
-
-//#define TRow_max ((Tr-1)*S+K)
-//#define TCol_max ((Tc-1)*S+K)
+#define OnChipIB_Width 65
+#define OnChipIB_Height 53
 #define TRow_max 53
-#define TCol_max TRow_max
+#define TCol_max 65
 
-//#define REORG_GEN
-//#define REORG_TEST
 
 #include <assert.h>
 #include <math.h>
@@ -811,9 +806,7 @@ void yolov2_hls_ps(network *net, float *input)
 					l.c,l.n,l.size,
 					l.stride,l.w,l.h,output_w, output_h, l.pad,l.activation==LEAKY?1:0,l.batch_normalize?1:0,
 					TM,TN,TR,TC, (mLoops + 1)*TM, mLoops*TM, (mLoops + 1)*TM, 0);
-#ifdef REORG_GEN
-				Weight_reorgnaization_anti(Weight_buf + woffset,Weight_reorg_buf + woffset,NULL,l.c,l.n,l.size,TM,TN,0);
-#endif
+
 				woffset += weight_offset[offset_index];
 				boffset += beta_offset[offset_index];
 				offset_index++;
@@ -889,11 +882,6 @@ void yolov2_hls_ps(network *net, float *input)
 		}
     }
 
-#ifdef REORG_GEN
-	fwrite(Weight_reorg_buf, sizeof(float), 203767168/4, fp_w_reorg);
-	fclose(fp_w_reorg);
-	free(Weight_reorg_buf);
-#endif
 	free(Memory_buf);
 	free(Weight_buf);
 	free(Beta_buf);

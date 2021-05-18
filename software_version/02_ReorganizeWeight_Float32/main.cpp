@@ -26,7 +26,7 @@ int main( int argc, char *argv[])
 	char img_buff[256];
 	char *input_imgfn = img_buff;
 	if(argc==1)
-		strncpy(input_imgfn, "test_imgs/000000000139.jpg", 256);
+		strncpy(input_imgfn, "../test_imgs/000000000139.jpg", 256);
 	else
 		strncpy(input_imgfn, argv[1], 256);
 	image im = load_image_stb(input_imgfn, 3);//3 channel img

@@ -7,21 +7,19 @@
 
 #define MAX(x,y) ((x)>(y)?(x):(y))
 #define MIN(x,y) ((x)<(y)?(x):(y))
+
 #define S 2
 #define K 3
-
+#define MAX_BETA_LENGTH 1024
 #define Tn 4
-#define Tm 23
+#define Tm 28
 #define Tr 26
 #define Tc 32
-#define OnChipIB_Width  ((Tc-1)*S+K)
-#define OnChipIB_Height ((Tr-1)*S+K)
-#define MAX_BETA_LENGTH (1024)
-
-//#define TRow_max ((Tr-1)*S+K)
-//#define TCol_max ((Tc-1)*S+K)
+#define OnChipIB_Width 65
+#define OnChipIB_Height 53
 #define TRow_max 53
-#define TCol_max TRow_max
+#define TCol_max 65
+
 
 //#define REORG_GEN
 //#define REORG_TEST

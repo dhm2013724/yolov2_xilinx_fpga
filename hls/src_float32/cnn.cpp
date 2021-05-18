@@ -1,37 +1,5 @@
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <ap_int.h>
-#include "hls_math.h"
-
-#define MAX(x,y) ((x)>(y)?(x):(y))
-#define MIN(x,y) ((x)<(y)?(x):(y))
-#define S 2
-#define K 3
-
-#define Tn 4
-#define Tm 23
-#define Tr 26
-#define Tc 32
-#define OnChipIB_Width  ((Tc-1)*S+K)
-#define OnChipIB_Height ((Tr-1)*S+K)
-#define MAX_BETA_LENGTH (1024)
-
-//#define TRow_max ((Tr-1)*S+K)
-//#define TCol_max ((Tc-1)*S+K)
-//#define TRow_max 53
-//#define TCol_max TRow_max
-
-//#define REORG_GEN
-//#define REORG_TEST
-
-#include <assert.h>
-//#include <math.h>
-
-#define PRAGMA_SUB(x) _Pragma (#x)
-#define DO_PRAGMA(x) PRAGMA_SUB(x)
+#include "cnn.h"
 
 void ifm_mmcpy_row(ap_uint<256> *input, ap_uint<256> local_buf[OnChipIB_Width/8+3], int CurrentOffset, int IHxIW, int IW_align_256b, int TCol,
 	uint8_t t1, uint8_t t2, uint8_t *t1_n, uint8_t *t2_n, uint8_t *bn_n, bool enable)
