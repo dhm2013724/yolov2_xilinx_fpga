@@ -10,3 +10,6 @@ Current testbench can just pass C-simulation, tb for C-RTL cosimulation maybe ne
 ~~Some other related files are available from software version foler.~~ If you have finished software version's steps, __All__ related files are included in src_xx repo.
 __You can also change the PIPELINE II in CONV compute moudle, I have tested II=1, 2, 3__
 ![csim](./csim.png)
+
+
+__src_int16's c-sim is too slow that I didnt wait for it.__

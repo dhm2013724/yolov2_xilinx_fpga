@@ -12,3 +12,4 @@ Follow below step:
 8. change two files to the same name, like yolov2.tcl and yolov2.bit for pynq
 
 __please check the vivado 2019.2 prj.(2021-05-19)__
+__because int16's design is similar to float32's, here, I didnt copy vivado bd fot int16.__

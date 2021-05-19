@@ -1212,6 +1212,54 @@ void load_convolutional_weights(layer l, FILE *fp)
         push_convolutional_layer(l);
     }
 #endif
+
+///add start
+    int i,j;
+    FILE *fp_w = fopen("weights.bin", "ab+");
+    if(!fp_w) file_error("weights.bin");
+    FILE *fp_bias = fopen("bias.bin", "ab+");
+    if(!fp_bias) file_error("bias.bin");
+
+    float *weight_buffer = (float *)calloc(num, sizeof(float));
+    float *alpha_buffer = (float *)calloc(l.n, sizeof(float));
+    float *bias_buffer = (float *)calloc(l.n, sizeof(float));
+
+    if(l.batch_normalize && (!l.dontloadscales))
+    {
+        for(i = 0;i < l.n; i++)
+        {
+            float tmp = l.scales[i]/(sqrt(l.rolling_variance[i]) + .000001f);
+            alpha_buffer[i] = tmp;
+            bias_buffer[i] = l.biases[i] - l.rolling_mean[i]*tmp;
+        }
+    }
+    else
+    {
+        for(i = 0;i < l.n; i++)
+        {
+            alpha_buffer[i] = 1;
+            bias_buffer[i] = l.biases[i];
+        }
+    }
+
+    int cnt = 0;
+    for(j = 0;j < l.n; j++)
+        for(i = 0;i < num/l.n; i++)
+        {
+            weight_buffer[cnt] = l.weights[cnt]*alpha_buffer[j];
+            cnt++;
+        }
+
+    fwrite(weight_buffer, sizeof(float), num, fp_w);
+    fwrite(bias_buffer, sizeof(float), l.n, fp_bias);
+
+    fclose(fp_w);
+    fclose(fp_bias);
+
+    free(weight_buffer);
+    free(alpha_buffer);
+    free(bias_buffer);    
+///add end
 }
 
 

@@ -65,11 +65,24 @@
 #define XFPGA_ACC_CTRL_BUS_ADDR_OUTPUTQ_DATA       0xc0
 #define XFPGA_ACC_CTRL_BUS_BITS_OUTPUTQ_DATA       32
 
-#define ACC_BASEADDR     0x43c00000
+//#define ACC_BASEADDR     0x43c00000
+//#define WEIGHT_BASEADDR  0x10000000//0x06129EC0 = 101883584 Bytes
+//#define BETA_BASEADDR    0x16140000//0x00005414 =     21524 Bytes
+//#define MEM_BASEADDR     0x16180000//
 
-#define WEIGHT_BASEADDR  0x10000000//0x06129EC0 = 101883584 Bytes
-#define BETA_BASEADDR    0x16140000//0x00005414 =     21524 Bytes
-#define MEM_BASEADDR     0x16180000//
+#define ACC_BASEADDR     0xA0000000
+#define WEIGHT_BASEADDR  0x60000000//0x06129EC0 = 101883584 Bytes
+#define BETA_BASEADDR    0x66140000//0x00005414 =     21524 Bytes
+#define MEM_BASEADDR     0x66180000//
+
+#define HW_S 2
+#define K 3
+#define Tn 2
+#define Tm 60
+#define Tr 26
+#define Tc 26
+#define MAX_BETA_LENGTH 1024
+#define INTERWIDTH 19
 
 #define WriteReg(BaseAddress, RegOffset, Data) *(volatile uint32_t*)((BaseAddress) + (RegOffset)) = (Data)
 #define ReadReg(BaseAddress, RegOffset) *(volatile uint32_t*)((BaseAddress) + (RegOffset))
@@ -87,15 +100,6 @@
 #define LT_MAXPOOL 1
 
 #define MIN_NEG (0x8001)
-
-#define HW_S 2
-#define K 3
-#define Tn 2
-#define Tm 60
-#define Tr 26
-#define Tc 26
-#define MAX_BETA_LENGTH 1024
-#define INTERWIDTH 19
 
 #define OnChipIB_Width  ((Tc-1)*HW_S+K)
 #define OnChipIB_Height ((Tr-1)*HW_S+K)
