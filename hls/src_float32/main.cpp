@@ -14,12 +14,12 @@ int main( int argc, char *argv[])
 	printf("YOLOv2 TEST Begin\n");
     	char **names = get_labels("coco.names");
 	int x;
-	for(x=0;x<80;x++)//80 classe labels
-	{
-		printf("[%d]%s\n",x,names[x]);
-	}
-    	image **alphabet = load_alphabet();
-    	network *net = load_network("yolov2.cfg");
+//	for(x=0;x<80;x++)//80 classe labels
+//	{
+//		printf("[%d]%s\n",x,names[x]);
+//	}
+    image **alphabet = load_alphabet();
+    network *net = load_network("yolov2.cfg");
 	set_batch_network(net, 1);
 
 ////////////////////load img resize img begin

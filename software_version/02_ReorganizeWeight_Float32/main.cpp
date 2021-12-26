@@ -10,16 +10,15 @@
 
 int main( int argc, char *argv[])
 {
-	//freopen("result.txt","w",stdout);
 	printf("YOLOv2 TEST Begin\n");
-    	char **names = get_labels("coco.names");
+    char **names = get_labels("coco.names");
 	int x;
-	for(x=0;x<80;x++)//80 classe labels
-	{
-		printf("[%d]%s\n",x,names[x]);
-	}
-    	image **alphabet = load_alphabet();
-    	network *net = load_network("yolov2.cfg");
+	// for(x=0;x<80;x++)//80 classe labels
+	// {
+	// 	printf("[%d]%s\n",x,names[x]);
+	// }
+    image **alphabet = load_alphabet();
+    network *net = load_network("yolov2.cfg");
 	set_batch_network(net, 1);
 
 ////////////////////load img resize img begin
@@ -37,7 +36,7 @@ int main( int argc, char *argv[])
 
 	time_t first, second;       
 	layer l = net->layers[net->n-1];
-    	float *X = sized.data;
+    float *X = sized.data;
 
 	first=time(NULL); 
 	yolov2_hls_ps(net, X);
@@ -52,8 +51,9 @@ int main( int argc, char *argv[])
     printf("%d\n", nboxes);
     for(x=0;x<nboxes;x++)
     {
-	if(dets[x].objectness > 0.0)
-		printf("[%3d]:h=%f,w=%f,x=%f,y=%f,objectness=%f\n",x,dets[x].bbox.h,dets[x].bbox.w,dets[x].bbox.x,dets[x].bbox.y,dets[x].objectness);
+		if(dets[x].objectness > 0.0)
+			printf("[%3d]:h=%f,w=%f,x=%f,y=%f,objectness=%f\n", 
+					x,dets[x].bbox.h,dets[x].bbox.w,dets[x].bbox.x,dets[x].bbox.y,dets[x].objectness);
     }
 
     if (nms) do_nms_sort(dets, nboxes, l.classes, nms);

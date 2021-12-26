@@ -1,232 +1,612 @@
 
 #include "cnn.h"
 
-void ifm_mmcpy_row(ap_uint<256> *input, ap_uint<256> local_buf[OnChipIB_Width/8+3], int CurrentOffset, int IHxIW, int IW_align_256b, int TCol,
-	uint8_t t1, uint8_t t2, uint8_t *t1_n, uint8_t *t2_n, uint8_t *bn_n, bool enable)
-{
-	if(!enable)
-		return;
+const uint32_t IB_W = OnChipIB_Width;
+const uint32_t IB_H = OnChipIB_Height;
+const uint32_t TnxIB_H = Tn*IB_H;
+const uint32_t TnxIB_HxIB_W = Tn*IB_H*IB_W;
 
-	int ifm_offset = CurrentOffset + t1*IHxIW + t2*IW_align_256b;
-//	int ifm_trans_offset = ((ifm_offset >>3) << 3);
-	int ifm_trans_offset = (ifm_offset >>3);
-	uint8_t begin_num = ifm_offset & 0x7;
-	uint16_t TCol_a = TCol + begin_num;
-	uint16_t loop_cnts = TCol_a >> 3;
-	if(TCol_a & 0x7)
-		loop_cnts++;
-	for(int t = 0; t < loop_cnts; t++)
-	{
-#pragma HLS PIPELINE II=1
-		local_buf[t].range(255, 0) = input[ifm_trans_offset + t].range(255, 0);
-//		memcpy( local_buf[t],(float *)(input + ifm_trans_offset + t*8), 8*sizeof(float));
+void input_load(float *input,float input_buffer[Tn][OnChipIB_Height][OnChipIB_Width], uint16_t r, uint16_t c, uint16_t n, uint8_t Kstride, uint8_t ksize, uint8_t Padding,
+		 uint16_t TR_MIN, uint16_t TC_MIN,
+		 uint16_t Input_w, uint16_t Input_h, uint8_t TN_MIN, uint32_t IHxIW, float pad_val, bool IsPad0ExtraFM)
+{
+	const int16_t Coffset = c*Kstride - Padding;
+	const int16_t Roffset = r*Kstride - Padding;
+
+	uint16_t TRow_MIN = (TR_MIN-1)*Kstride + ksize;
+	uint16_t TCol_MIN = (TC_MIN-1)*Kstride + ksize;
+
+	assert(TN_MIN < 65535);
+	assert(TRow_MIN < 65535);
+	assert(TCol_MIN < 65535);
+
+	uint16_t tl_y, tl_x, br_y, br_x;
+	uint16_t px_l, px_r, px_b, px_t;
+	if(Coffset < 0){
+		tl_x = 0;
+		px_l = -Coffset;
+	}
+	else{
+		tl_x = Coffset;
+		px_l = 0;
 	}
 
-	*t1_n = t1;
-	*t2_n = t2;
-	*bn_n = begin_num;
-}
-
-void ifm_copy_lbuf2ibuf(float input_buffer[Tn][OnChipIB_Height][OnChipIB_Width], ap_uint<256> local_buf[OnChipIB_Width/8+3], int TCol, int Input_w, int Input_h, int TN_MIN, float pad_value,
-	int Coffset, int Roffset, uint8_t t1, uint8_t t2, uint8_t bn, bool enable)
-{
-	if(!enable)
-		return;
-
-	bool TN_Enable = t1 < TN_MIN;
-	int yoffset = Roffset + t2;
-	bool YEnable = (yoffset >= 0)&&(yoffset < Input_h);
-	bool PEnable = YEnable&&TN_Enable;
-
-	uint16_t cnt = 1;
-	uint8_t bn_local = bn;
-	ap_uint<256> buf_256b;
-	buf_256b.range(255, 0) =  local_buf[0].range(255, 0);
-//	memcpy(buf_256b, local_buf[0], 8*sizeof(float));
-	for(uint8_t t3 = 0;t3 < TCol; t3++)
-	{
-//DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=TCol_max)
-#pragma HLS PIPELINE II=1
-		int xoffset = Coffset + t3;
-		bool XEnable = (xoffset >= 0)&&(xoffset < Input_w);
-		if(XEnable&&PEnable)
-		{
-			union {float f;uint32_t u;} tmp_32;
-			tmp_32.u = buf_256b.range(bn_local*32+31, bn_local*32);
-			input_buffer[t1][t2][t3] = tmp_32.f;
-		}
-		else
-			input_buffer[t1][t2][t3] = pad_value;
-		bn_local++;
-		if(bn_local==8)
-		{
-			bn_local = 0;
-			buf_256b.range(255, 0) = local_buf[cnt].range(255, 0);
-//			memcpy(buf_256b, local_buf[cnt], 8*sizeof(float));
-			cnt++;
-		}
+	br_x = Coffset + TCol_MIN -1;
+	if(br_x < Input_w){
+		px_r = 0;
+	}else{
+		px_r = br_x - Input_w + 1;
 	}
-}
 
-void input_load(ap_uint<256> *input,float input_buffer[Tn][OnChipIB_Height][OnChipIB_Width],int r,int c,int n,int Kstride,int Padding,int TRow,int TCol,int Input_w, int IW_align_256b,int Input_h,int TN_MIN,int IHxIW,int LayerType)
-{
-	uint8_t t1,t2;
-	static ap_uint<256> local_buf0[OnChipIB_Width/8+3];
-	static ap_uint<256> local_buf1[OnChipIB_Width/8+3];
+	if(Roffset < 0){
+		tl_y = 0;
+		px_t = -Roffset;
+	}
+	else{
+		tl_y = Roffset;
+		px_t = 0;
+	}
+	br_y = Roffset + TRow_MIN -1;
+	if(br_y < Input_h){
+		px_b = 0;
+	}else{
+		px_b = br_y - Input_h + 1;
+	}
 
-	const int Coffset = c*Kstride - Padding;
-	const int Roffset = r*Kstride - Padding;
-	const int CurrentOffset = n*IHxIW + Roffset*IW_align_256b + Coffset;
+	uint16_t px_tb = (px_t + px_b);
+	uint16_t px_lr = (px_l + px_r);
+	uint16_t col_len = TCol_MIN - px_lr;
+	uint16_t row_len = TRow_MIN - px_tb;
+	uint16_t col_max = col_len + px_l;
+	uint16_t row_max = row_len + px_t;
 
-	uint8_t t1_n0, t1_n1, t2_n0, t2_n1;
-	uint8_t bn_n0, bn_n1;
-	bool pp = true;
+	bool IsColCont = (col_len == Input_w);
+	bool IsRowCont = (row_len == Input_h);
+	bool IsAllCont = IsRowCont && IsColCont;
 
-	float pad_value = 0.0f;
-	if(LayerType==1)
-		pad_value = -1024*1024;
+	uint32_t burstlen;
+	uint32_t offset_base;
+	uint16_t T1_MIN, T2_MIN, T12_MIN;
+	uint8_t ifm_lmode;
+	if(IsAllCont){
+		burstlen = TN_MIN*row_len*col_len;
+		offset_base = n*IHxIW;
+		T1_MIN = 1;
+		T2_MIN = 1;
+		ifm_lmode = 0;
+		T12_MIN = 1;
+	}else if(IsColCont){
+		burstlen = row_len*col_len;
+		offset_base = n*IHxIW + tl_y*Input_w;
+		T1_MIN = TN_MIN;
+		T2_MIN = 1;
+		ifm_lmode = 1;
+		T12_MIN = TN_MIN;
+	}else{
+		burstlen = col_len;
+		offset_base = n*IHxIW + tl_y*Input_w + tl_x;
+		T1_MIN = TN_MIN;
+		T2_MIN = row_len;
+		ifm_lmode = 2;
+		T12_MIN = TN_MIN*row_len;
+	}
+	assert((ifm_lmode >=0)&&(ifm_lmode <=2));
 
-	int TnxTRow = Tn*TRow;
-	int t = 0;
-	t1 = 0; t2 = 0;
-	for(t = 0;t < TnxTRow+1; t++)
-	{
-//DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=TRow_max)
-		if(pp)
+	uint16_t t1, t2, t3;
+	for(uint16_t t12=0; t12<T12_MIN; t12++){
+DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=TnxIB_H)
+
+		uint16_t t1_in, t2_in;
+		uint32_t offset_ex = offset_base;
+
+		static uint16_t t1m, t2m;
+		if(t12==0){
+			t1m = 0;
+			t2m = 0;
+		}else{
+			t2m++;
+			if(t2m==T2_MIN){
+				t2m = 0;
+				t1m++;
+			}
+		}
+
+		if(ifm_lmode==0){
+			t1 = 0; t2 = 0; t3 = 0;
+		}else if(ifm_lmode==1)
 		{
-			ifm_mmcpy_row(input, local_buf0, CurrentOffset, IHxIW, IW_align_256b, TCol, t1, t2, &t1_n0, &t2_n0, &bn_n0, t!=TnxTRow);
-			ifm_copy_lbuf2ibuf( input_buffer, local_buf1, TCol, Input_w, Input_h, TN_MIN, pad_value, Coffset, Roffset, t1_n1, t2_n1, bn_n1, t!=0);
-			pp = false;
+			t1_in = t1m; t2 = 0; t3 = 0;
+			offset_ex += (t1m*IHxIW);
+		}else if(ifm_lmode==2)
+		{
+			t1_in = t1m; t2_in = t2m+px_t; t3 = 0;
+			offset_ex += ( t1m*IHxIW + t2m*Input_w);
+		}
+
+		float ibuf_local[TnxIB_HxIB_W];
+		float *ifm_addr = input + offset_ex;
+		assert(burstlen <= TnxIB_HxIB_W);
+
+		uint32_t ifm_offset = 0;
+		if(ifm_lmode==0)
+		{
+			for(uint16_t t=0; t<burstlen; t++){
+DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=TnxIB_HxIB_W)
+#pragma HLS PIPELINE II=1
+				float tmp_in = ifm_addr[t];
+				input_buffer[t1][t2+px_t][t3+px_l] = tmp_in;
+
+				t3++;
+				if(t3==col_len){
+					t3=0; t2++;
+					if(t2==row_len){
+						t2=0; t1++;
+					}
+				}
+			}
+		}else if(ifm_lmode==1)
+		{
+			for(uint16_t t=0; t<burstlen; t++){
+DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=TnxIB_HxIB_W)
+#pragma HLS PIPELINE II=1
+				float tmp_in = ifm_addr[t];
+				input_buffer[t1_in][t2+px_t][t3+px_l] = tmp_in;
+
+				t3++;
+				if(t3==col_len){
+					t3=0; t2++;
+				}
+			}
 		}else
 		{
-			ifm_mmcpy_row(input, local_buf1, CurrentOffset, IHxIW, IW_align_256b, TCol, t1, t2, &t1_n1, &t2_n1, &bn_n1, t!=TnxTRow);
-			ifm_copy_lbuf2ibuf( input_buffer, local_buf0, TCol, Input_w, Input_h, TN_MIN, pad_value, Coffset, Roffset, t1_n0, t2_n0, bn_n0, t!=0);
-			pp = true;
-		}
+			for(uint16_t t=0; t<burstlen; t++){
+DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=TnxIB_HxIB_W)
+#pragma HLS PIPELINE II=1
+				float tmp_in = ifm_addr[t];
+				input_buffer[t1_in][t2_in][t3+px_l] = tmp_in;
 
-		t2++;
-		if(t2==TRow)
-		{
-			t2 = 0;
-			t1++;
+				t3++;
+			}
 		}
+	}
+
+	if(px_lr){
+		for(uint16_t t1 = 0;t1 < TN_MIN; t1++){
+DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=Tn)
+		for(uint16_t t2 = 0;t2 < row_len; t2++){
+DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=IB_H)
+		for(uint16_t t3 = 0;t3 < px_lr; t3++){
+DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=IB_W)
+#pragma HLS PIPELINE II=1
+			if(t3 < px_l)
+				input_buffer[t1][t2+px_t][t3] = pad_val;
+			else
+				input_buffer[t1][t2+px_t][t3+col_max] = pad_val;
+		}}}
+	}
+
+	if(px_tb){
+		for(uint16_t t1 = 0;t1 < TN_MIN; t1++){
+DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=Tn)
+		for(uint16_t t2 = 0;t2 < px_tb; t2++){
+DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=IB_H)
+		for(uint16_t t3 = 0;t3 < TCol_MIN; t3++){
+DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=IB_W)
+#pragma HLS PIPELINE II=1
+			if(t2 < px_t)
+				input_buffer[t1][t2][t3] = pad_val;
+			else
+				input_buffer[t1][t2+row_len][t3] = pad_val;
+		}}}
+	}
+
+	uint16_t TN_left = Tn - TN_MIN;
+	if(IsPad0ExtraFM&&TN_left){
+		for(uint16_t t1 = 0;t1 < TN_left; t1++){
+DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=Tn)
+		for(uint16_t t2 = 0;t2 < TRow_MIN; t2++){
+DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=IB_H)
+		for(uint16_t t3 = 0;t3 < TCol_MIN; t3++){
+DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=IB_W)
+#pragma HLS PIPELINE II=1
+				input_buffer[t1+TN_MIN][t2][t3] = 0;
+		}}}
 	}
 
 }
 
-void weight_load_reorg(ap_uint<256> *Weight,float weight_buffer[Tm][Tn][K][K],bool weight_load_enable,int m,int n,int IFM_numxKxK,int KxK,int Ksize,int TM_MIN,int TN_MIN)
+//void memcpy_ifm(hls::stream<float> &ibuf_local,/*float *ibuf_local,*/  float *input, uint32_t burstlen, uint32_t offset_base, uint8_t ifm_lmode, uint16_t Input_w, uint32_t IHxIW, uint16_t px_t,
+//				uint16_t t12, uint16_t T2_MIN, uint16_t *t1, uint16_t *t2){
+//
+//#pragma HLS INLINE off
+//	uint32_t offset_ex = offset_base;
+//	assert((ifm_lmode >=0)&&(ifm_lmode <=2));
+//
+//	static uint16_t t1m, t2m;
+//
+//	if(t12==0){
+//		t1m = 0;
+//		t2m = 0;
+//	}else{
+//		t2m++;
+//		if(t2m==T2_MIN){
+//			t2m = 0;
+//			t1m++;
+//		}
+//	}
+//
+//	if(ifm_lmode==0){
+//		*t1 = 0; *t2 = 0;
+//	}else if(ifm_lmode==1)
+//	{
+//		*t1 = t1m; *t2 = 0;
+//		offset_ex += (t1m*IHxIW);
+//	}else if(ifm_lmode==2)
+//	{
+//		*t1 = t1m; *t2 = t2m + px_t;
+//		offset_ex += ( t1m*IHxIW + t2m*Input_w);
+//	}
+//
+//	float *ifm_addr = input + offset_ex;
+//	assert(burstlen <= TnxIB_HxIB_W);
+//
+//	for(uint16_t t=0; t<burstlen; t++){
+//DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=TnxIB_HxIB_W)
+//#pragma HLS PIPELINE II=1
+////		ibuf_local[t] = ifm_addr[t];
+//		float tmp_f32 = ifm_addr[t];
+//		ibuf_local.write(tmp_f32);
+//	}
+//}
+//
+//void memcpy_ifm2buf(float input_buffer[Tn][OnChipIB_Height][OnChipIB_Width], hls::stream<float> &ibuf_local,/*float *ibuf_local,*/
+//		uint8_t TN_MIN, uint16_t TRow_MIN, uint16_t TCol_MIN, float pad_val, uint8_t ifm_lmode,
+//		uint16_t px_l, uint16_t px_t, uint16_t row_max, uint16_t col_max, uint16_t t1_in, uint16_t t2_in, uint16_t T1_MIN2B, uint16_t T2_MIN2B){
+//
+//#pragma HLS INLINE off
+////	uint32_t ifm_offset = 0;
+//	if((ifm_lmode==0) || (ifm_lmode==1))
+//	{
+//		for(uint16_t t1 = 0;t1 < T1_MIN2B; t1++){
+//DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=Tn)
+//		for(uint16_t t2 = 0;t2 < T2_MIN2B; t2++){
+//DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=IB_H)
+//		for(uint16_t t3 = 0;t3 < TCol_MIN; t3++){
+//DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=IB_W)
+//#pragma HLS PIPELINE II=1
+//			bool PX_R_en = (t2 >= px_t) && (t2 < row_max);
+//			bool PX_C_en = (t3 >= px_l) && (t3 < col_max);
+//			if(PX_R_en&&PX_C_en){
+//				input_buffer[t1+t1_in][t2][t3] = ibuf_local.read();
+////				input_buffer[t1+t1_in][t2][t3] = ibuf_local[ifm_offset];
+////				ifm_offset++;
+//			}else{
+//				input_buffer[t1+t1_in][t2][t3] = pad_val;
+//			}
+//		}}}
+//	}else
+//	{
+//		for(uint16_t t3 = 0;t3 < TCol_MIN; t3++){
+//DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=IB_W)
+//#pragma HLS PIPELINE II=1
+//			bool PX_C_en = (t3 >= px_l) && (t3 < col_max);
+//			if(PX_C_en){
+//				input_buffer[t1_in][t2_in][t3] = ibuf_local.read();
+////				input_buffer[t1_in][t2_in][t3] = ibuf_local[ifm_offset];
+////				ifm_offset++;
+//			}else{
+//				input_buffer[t1_in][t2_in][t3] = pad_val;
+//			}
+//		}
+//	}
+//}
+//
+//void load_ifm_df_wrapper(float *input,float input_buffer[Tn][OnChipIB_Height][OnChipIB_Width], uint16_t Input_w, uint8_t TN_MIN, uint32_t IHxIW, float pad_val,
+//	uint32_t burstlen, uint32_t offset_base, uint8_t ifm_lmode, uint16_t TRow_MIN, uint16_t TCol_MIN,
+//	uint16_t px_l, uint16_t px_t, uint16_t row_max, uint16_t col_max, uint16_t T1_MIN2B, uint16_t T2_MIN2B, uint16_t T1_MIN, uint16_t T2_MIN, uint16_t T12_MIN){
+//
+//	for(uint16_t t12=0; t12<T12_MIN; t12++){
+//DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=TnxIB_H)
+//#pragma HLS DATAFLOW
+//		uint16_t t1_in, t2_in;
+////		float ibuf_local[TnxIB_HxIB_W];
+//		hls::stream<float> ibuf_local;
+//#pragma HLS STREAM variable=ibuf_local depth=TnxIB_HxIB_W dim=1
+//
+//		memcpy_ifm(ibuf_local, input, burstlen, offset_base, ifm_lmode, Input_w, IHxIW, px_t, t12, T2_MIN, &t1_in, &t2_in);
+//
+//		memcpy_ifm2buf(input_buffer, ibuf_local, TN_MIN, TRow_MIN, TCol_MIN, pad_val, ifm_lmode,
+//						px_l, px_t, row_max, col_max, t1_in, t2_in, T1_MIN2B, T2_MIN2B);
+//	}
+//
+//}
+//
+//void input_load(float *input,float input_buffer[Tn][OnChipIB_Height][OnChipIB_Width], uint16_t r, uint16_t c, uint16_t n, uint8_t Kstride, uint8_t ksize, uint8_t Padding,
+//		 uint16_t TR_MIN, uint16_t TC_MIN,
+//		 uint16_t Input_w, uint16_t Input_h, uint8_t TN_MIN, uint32_t IHxIW, float pad_val, bool IsPad0ExtraFM)
+//{
+//	const int16_t Coffset = c*Kstride - Padding;
+//	const int16_t Roffset = r*Kstride - Padding;
+//
+//	uint16_t TRow_MIN = (TR_MIN-1)*Kstride + ksize;
+//	uint16_t TCol_MIN = (TC_MIN-1)*Kstride + ksize;
+//
+//	assert(TN_MIN < 65535);
+//	assert(TRow_MIN < 65535);
+//	assert(TCol_MIN < 65535);
+//
+//	uint16_t tl_y, tl_x, br_y, br_x;
+//	uint16_t px_l, px_r, px_b, px_t;
+//	if(Coffset < 0){
+//		tl_x = 0;
+//		px_l = -Coffset;
+//	}
+//	else{
+//		tl_x = Coffset;
+//		px_l = 0;
+//	}
+//
+//	br_x = Coffset + TCol_MIN -1;
+//	if(br_x < Input_w){
+//		px_r = 0;
+//	}else{
+//		px_r = br_x - Input_w + 1;
+//	}
+//
+//	if(Roffset < 0){
+//		tl_y = 0;
+//		px_t = -Roffset;
+//	}
+//	else{
+//		tl_y = Roffset;
+//		px_t = 0;
+//	}
+//	br_y = Roffset + TRow_MIN -1;
+//	if(br_y < Input_h){
+//		px_b = 0;
+//	}else{
+//		px_b = br_y - Input_h + 1;
+//	}
+//
+//	uint16_t px_tb = (px_t + px_b);
+//	uint16_t px_lr = (px_l + px_r);
+//	uint16_t col_len = TCol_MIN - px_lr;
+//	uint16_t row_len = TRow_MIN - px_tb;
+//	uint16_t col_max = col_len + px_l;
+//	uint16_t row_max = row_len + px_t;
+//
+//	bool IsColCont = (col_len == Input_w);
+//	bool IsRowCont = (row_len == Input_h);
+//	bool IsAllCont = IsRowCont && IsColCont;
+//
+//	uint32_t burstlen;
+//	uint32_t offset_base;
+//	uint16_t T1_MIN, T2_MIN, T1_MIN2B, T2_MIN2B, T12_MIN;
+//	uint8_t ifm_lmode;
+//	if(IsAllCont){
+//		burstlen = TN_MIN*row_len*col_len;
+//		offset_base = n*IHxIW;
+//		T1_MIN = 1;
+//		T2_MIN = 1;
+//		ifm_lmode = 0;
+//		T1_MIN2B = TN_MIN;
+//		T2_MIN2B = TRow_MIN;
+//		T12_MIN = 1;
+//	}else if(IsColCont){
+//		burstlen = row_len*col_len;
+//		offset_base = n*IHxIW + tl_y*Input_w;
+//		T1_MIN = TN_MIN;
+//		T2_MIN = 1;
+//		ifm_lmode = 1;
+//		T1_MIN2B = 1;
+//		T2_MIN2B = TRow_MIN;
+//		T12_MIN = TN_MIN;
+//	}else{
+//		burstlen = col_len;
+//		offset_base = n*IHxIW + tl_y*Input_w + tl_x;
+//		T1_MIN = TN_MIN;
+//		T2_MIN = row_len;
+//		ifm_lmode = 2;
+//		T1_MIN2B = 1;
+//		T2_MIN2B = 1;
+//		T12_MIN = TN_MIN*row_len;
+//	}
+//
+//	load_ifm_df_wrapper(input, input_buffer, Input_w, TN_MIN, IHxIW, pad_val, burstlen, offset_base,
+//		 ifm_lmode, TRow_MIN, TCol_MIN, px_l, px_t, row_max, col_max, T1_MIN2B, T2_MIN2B, T1_MIN, T2_MIN, T12_MIN);
+//
+//	if((ifm_lmode==2)&&px_tb){
+//		for(uint16_t t1 = 0;t1 < TN_MIN; t1++){
+//DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=Tn)
+//		for(uint16_t t2 = 0;t2 < px_tb; t2++){
+//DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=IB_H)
+//		for(uint16_t t3 = 0;t3 < TCol_MIN; t3++){
+//DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=IB_W)
+//#pragma HLS PIPELINE II=1
+//			if(t2 < px_t)
+//				input_buffer[t1][t2][t3] = pad_val;
+//			else
+//				input_buffer[t1][t2+row_len][t3] = pad_val;
+//		}}}
+//	}
+//
+//	uint16_t TN_left = Tn - TN_MIN;
+//	if(IsPad0ExtraFM&&TN_left){
+//		for(uint16_t t1 = 0;t1 < TN_left; t1++){
+//DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=Tn)
+//		for(uint16_t t2 = 0;t2 < TRow_MIN; t2++){
+//DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=IB_H)
+//		for(uint16_t t3 = 0;t3 < TCol_MIN; t3++){
+//DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=IB_W)
+//#pragma HLS PIPELINE II=1
+//				input_buffer[t1+TN_MIN][t2][t3] = 0;
+//		}}}
+//	}
+//
+//}
+
+const uint32_t TmxTnxKxK = Tm*Tn*K*K;
+
+void weight_load_reorg(float *Weight,float weight_buffer[Tm][Tn][K][K],bool w_enable,int m,int n, uint32_t IFM_numxKxK, uint8_t KxK, uint8_t Ksize, uint8_t TM_MIN, uint8_t TN_MIN)
 {
-	uint8_t t1,t2,t3,t4;
-	static ap_uint<256> local_buf[(Tm*Tn*K*K)/8 + 3];
+	if(!w_enable)
+		return;
+
 	static int Woffset;
 
 	assert((TM_MIN > 0)&&(TM_MIN <= Tm));
 	assert((TN_MIN > 0)&&(TN_MIN <= Tn));
 	assert((KxK > 0)&&(KxK <= K*K));
 
-	if(!weight_load_enable)
-		return;
-
 	if(m==0&&n==0)
 		Woffset = 0;
 
-	uint16_t mm_offset = TM_MIN*TN_MIN*KxK;
+	float *weight_addr = Weight + Woffset;
+	uint32_t burstlen = TM_MIN*TN_MIN*KxK;
+	Woffset += burstlen;
+	assert(burstlen <= TmxTnxKxK);
 
-//	uint32_t trans_offset = ((Woffset >>3) << 3);
-	uint32_t trans_offset = (Woffset >>3);
-	uint8_t begin_num = Woffset & 0x7;//ap_uint<3>
-	uint16_t TCol_a = mm_offset + begin_num;
-	uint16_t loop_cnts = TCol_a >> 3;
-	if(TCol_a & 0x7)
-		loop_cnts++;
-	for(int t = 0; t < loop_cnts; t++)
-	{
+	uint8_t t1,t2,t3,t4;
+	t1 = 0; t2 = 0; t3 = 0; t4 = 0;
+	for(uint16_t t=0; t<burstlen; t++){
+DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=TmxTnxKxK)
 #pragma HLS PIPELINE II=1
-		local_buf[t].range(255, 0) = Weight[trans_offset + t].range(255, 0);
-//		memcpy( local_buf[t],(float *)(Weight + trans_offset + t*8), 8*sizeof(float));
-	}
-	Woffset += mm_offset;
+		float tmp_in = weight_addr[t];
+		weight_buffer[t1][t2][t3][t4] = tmp_in;
 
-	uint16_t cnt = 1;
-	uint8_t bn_local = begin_num;
-	ap_uint<256> buf_256b;
-	buf_256b.range(255, 0) = local_buf[0].range(255, 0);
-//	memcpy(buf_256b, local_buf[0], 8*sizeof(float));
-
-	for(t3 = 0;t3 <Ksize; t3++)
-DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=K)
-		for(t4 = 0;t4 <Ksize; t4++)
-DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=K)
-			for(t1 = 0;t1 < Tm; t1++)
-				for(t2 = 0;t2 < Tn; t2++)
-				{
-#pragma HLS PIPELINE II=1
-					bool Enable = (t1 < TM_MIN)&&(t2 < TN_MIN);
-					if(Enable)
-					{
-						union {float f; uint32_t u;} tmp_32;
-						tmp_32.u = buf_256b.range(bn_local*32+31,bn_local*32);
-						weight_buffer[t1][t2][t3][t4] =  tmp_32.f;
-						bn_local++;
-						//bn_local = bn_local % 8;//ap_uint<3> 0-7
-						if(bn_local==8)
-						{
-							bn_local = 0;
-							buf_256b.range(255, 0) = local_buf[cnt].range(255, 0);
-//							memcpy(buf_256b, local_buf[cnt], 8*sizeof(float));
-							cnt++;
-						}
-					}
-					else
-						weight_buffer[t1][t2][t3][t4] = 0;
+		t2++;
+		if(t2==TN_MIN){
+			t2=0; t1++;
+			if(t1==TM_MIN){
+				t1=0; t4++;
+				if(t4==Ksize){
+					t4=0; t3++;
 				}
+			}
+		}
+	}
+
+	uint8_t TM_left = Tm - TM_MIN;
+	uint8_t TN_left = Tn - TN_MIN;
+
+	if(TM_left || TN_left){
+
+	for(t3 = 0;t3 <Ksize; t3++){
+DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=K)
+	for(t4 = 0;t4 <Ksize; t4++){
+DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=K)
+#pragma HLS PIPELINE II=1
+	for(t1 = 0;t1 < Tm; t1++){
+DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=Tm)
+	for(t2 = 0;t2 < Tn; t2++){
+DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=Tn)
+			if((t1 >= TM_MIN)&&(t2 >= TN_MIN))
+				weight_buffer[t1][t2][t3][t4] = 0;
+	}}}}
+
+	}
 }
 
 
-void copy_input_weight(ap_uint<256> *input,ap_uint<256> *Weight,int IFM_num,int Input_w, int IW_align_256b, int Input_h, int Ksize,int Kstride,int r,int c,int m,int n,
-		int TM_MIN,int TN,int TRow,int TCol,int Padding,float input_buffer[Tn][OnChipIB_Height][OnChipIB_Width],float weight_buffer[Tm][Tn][K][K],int n_next[1],
-		bool enable,bool weight_load_enable,bool initialize,const int IHxIW,const int KxK,const int IFM_numxKxK,const int LayerType)
+//void memcpy_w(hls::stream<float> &wbuf_local /*float *wbuf_local*/,  float *weight_addr, uint32_t burstlen){
+//
+//#pragma HLS INLINE off
+//	for(uint16_t t=0; t<burstlen; t++){
+//DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=TmxTnxKxK)
+//#pragma HLS PIPELINE II=1
+////		wbuf_local[t] = weight_addr[t];
+//		float tmp_f32 = weight_addr[t];
+//		wbuf_local.write(tmp_f32);
+//	}
+//}
+//
+//void memcpy_w2buf(float weight_buffer[Tm][Tn][K][K], hls::stream<float> &wbuf_local /*float *wbuf_local*/, uint8_t Ksize, uint8_t TM_MIN, uint8_t TN_MIN){
+//
+//#pragma HLS INLINE off
+//	uint8_t t1,t2,t3,t4;
+////	uint32_t woffset_local = 0;
+//	for(t3 = 0;t3 <Ksize; t3++){
+//DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=K)
+//	for(t4 = 0;t4 <Ksize; t4++){
+//DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=K)
+//	for(t1 = 0;t1 < Tm; t1++){
+//DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=Tm)
+//	for(t2 = 0;t2 < Tn; t2++){
+//DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=Tn)
+//#pragma HLS PIPELINE II=1
+//			if((t1 < TM_MIN)&&(t2 < TN_MIN)){
+//				weight_buffer[t1][t2][t3][t4] = wbuf_local.read();
+////				weight_buffer[t1][t2][t3][t4] = wbuf_local[woffset_local];
+////				woffset_local++;
+//			}else
+//				weight_buffer[t1][t2][t3][t4] = 0;
+//	}}}}
+//}
+//
+//void memcpy_w_df_wrapper(float *weight_addr, uint32_t burstlen,
+//					float weight_buffer[Tm][Tn][K][K], uint8_t Ksize, uint8_t TM_MIN, uint8_t TN_MIN){
+//
+//#pragma HLS DATAFLOW
+////	float wbuf_local[TmxTnxKxK];
+//	hls::stream<float> wbuf_local;
+//#pragma HLS STREAM variable=wbuf_local depth=TmxTnxKxK dim=1
+//
+//	memcpy_w(wbuf_local,  weight_addr, burstlen);
+//	memcpy_w2buf( weight_buffer, wbuf_local, Ksize, TM_MIN, TN_MIN);
+//}
+//
+//void weight_load_reorg(float *Weight,float weight_buffer[Tm][Tn][K][K],bool w_enable,int m,int n, uint32_t IFM_numxKxK, uint8_t KxK, uint8_t Ksize, uint8_t TM_MIN, uint8_t TN_MIN)
+//{
+//	if(!w_enable)
+//		return;
+//
+//	static int Woffset;
+//
+//	assert((TM_MIN > 0)&&(TM_MIN <= Tm));
+//	assert((TN_MIN > 0)&&(TN_MIN <= Tn));
+//	assert((KxK > 0)&&(KxK <= K*K));
+//
+//	if(m==0&&n==0)
+//		Woffset = 0;
+//
+//	float *weight_addr = Weight + Woffset;
+//	uint32_t burstlen = TM_MIN*TN_MIN*KxK;
+//	Woffset += burstlen;
+//	assert(burstlen <= TmxTnxKxK);
+//
+//	memcpy_w_df_wrapper(weight_addr, burstlen, weight_buffer, Ksize, TM_MIN, TN_MIN);
+//}
+
+void copy_input_weight(float *input,float *Weight,int IFM_num,int Input_w, int Input_h, int Ksize,int Kstride,int r,int c,int m,int n,
+		int TM_MIN,int TN,int TR_MIN,int TC_MIN,int Padding,float input_buffer[Tn][OnChipIB_Height][OnChipIB_Width],float weight_buffer[Tm][Tn][K][K],
+		bool weight_load_enable,const int IHxIW,const int KxK,const int IFM_numxKxK,const int LayerType, bool enable)
 {
 	if(!enable)
-		return ;
+		return;
 
-	const int TN_MIN = MIN(TN, IFM_num-n);
-	n_next[0] = n;
+	int TN_MIN = MIN(TN, IFM_num-n);
+	bool IsPad0ExtraFM = (LayerType==0);
+	float pad_val = 0.0f;
+	if(!IsPad0ExtraFM)
+		pad_val = -1024*1024;
 
-	input_load(input, input_buffer, r, c, n, Kstride, Padding, TRow, TCol, Input_w, IW_align_256b, Input_h, TN_MIN, IHxIW, LayerType);
-
+	input_load(input, input_buffer, r, c, n, Kstride, Ksize, Padding, TR_MIN, TC_MIN, Input_w, Input_h, TN_MIN, IHxIW, pad_val, IsPad0ExtraFM);
 	weight_load_reorg(Weight,weight_buffer,weight_load_enable,m,n,IFM_numxKxK,KxK,Ksize,TM_MIN,TN_MIN);
 }
 
-void copy_local_beta(float beta_buffer[MAX_BETA_LENGTH],float local_beta_buffer[MAX_BETA_LENGTH],const int TM_MIN,int m)
+void conv2d_tile(float input_buffer[Tn][OnChipIB_Height][OnChipIB_Width],float output_buffer[Tm][Tr][Tc],
+		float weight_buffer[Tm][Tn][K][K], uint16_t n_next,
+		uint8_t Ksize, uint8_t Kstride,
+		uint16_t TM_MIN, uint16_t TR_MIN, uint16_t TC_MIN,bool enable)
 {
-	int offset;
-	int tm;
-	for(tm = 0,offset = m;tm < TM_MIN;tm++)
-	{
-DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=Tm)
-#pragma HLS PIPELINE II=1
-		local_beta_buffer[tm] = beta_buffer[offset];
-		offset++;
-	}
-}
-
-void compute(float input_buffer[Tn][OnChipIB_Height][OnChipIB_Width],float output_buffer[Tm][Tr][Tc],
-		float weight_buffer[Tm][Tn][K][K],float beta_buffer[MAX_BETA_LENGTH],int n_next[1],
-		const int Ksize,const int Kstride,int m,
-		const int TM_MIN,const int TR_MIN,const int TC_MIN,bool enable)
-{
-	static float local_beta_buffer[Tm];
-#pragma HLS ARRAY_PARTITION variable=local_beta_buffer complete dim=1
-
 	if(!enable)
 	{
-		copy_local_beta(beta_buffer,local_beta_buffer,TM_MIN, m);
 		return;
 	}
 
 	uint8_t i,j,tr,tc,tm,tn;
-	int n = n_next[0];
+	const bool ne0 = (n_next==0);
+
 	float partial_mul[Tm][Tn];
 #pragma HLS ARRAY_PARTITION variable=partial_mul complete dim=1
 #pragma HLS ARRAY_PARTITION variable=partial_mul complete dim=2
@@ -242,13 +622,13 @@ DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=Tr)
 				for(tc = 0;tc < TC_MIN;tc++)
 				{
 DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=Tc)
-#pragma HLS PIPELINE II=3
+#pragma HLS PIPELINE II=2
 					for(tm = 0;tm < Tm;tm++)
 					{
 #pragma HLS DEPENDENCE variable=output_buffer inter false
 
-						if(i==0&&j==0&&n==0)
-							partial_add[tm] = local_beta_buffer[tm];
+						if(i==0&&j==0&&ne0)
+							partial_add[tm] = 0;
 						else
 							partial_add[tm] = output_buffer[tm][tr][tc];
 
@@ -264,272 +644,367 @@ DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=Tc)
 						}
 						output_buffer[tm][tr][tc] = partial_add[tm] + partial_sum;
 					}
-
 				}
 }
 
-void nonlinear_leaky_row(ap_uint<256> local_buf[Tc/8+2], float Input[Tm][Tr][Tc], uint8_t tm, uint8_t tr, uint8_t *tm_n, uint8_t *tr_n, uint8_t TC_MIN,const bool IsNL, bool enable)
-{
-	if(!enable)
-		return ;
+const int OFM_BLmax = 256;
 
-	uint8_t tc;
-	assert((TC_MIN>0)&&(TC_MIN<=Tc));
+float postproc(float ofm_in, float bias_in, bool IsBias, bool IsNL){
+	float tmp_out, tmp, tmp0;
+	tmp = ofm_in;
+	if(IsBias)
+		tmp0 = tmp + bias_in;
+	else
+		tmp0 = tmp;
 
-	uint8_t cnt = 0;
-	uint8_t bn_local = 0;//ap_uint<3> 0-7
-
-	float tmp_out;
-	for(tc = 0;tc < TC_MIN;tc++)
+	if(IsNL&&(tmp0<0.0f))
 	{
-DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=Tc)
+		tmp_out = tmp0*0.1f;
+	}
+	else
+		tmp_out = tmp0;
+
+	return tmp_out;
+}
+
+void ofm_mmcpy_cont(float *Output, hls::stream<float> &local_buf /*float *local_buf*/, uint32_t ofm_offset, uint16_t data_num)
+{
+#pragma HLS INLINE off
+	float *OFM_base = Output + ofm_offset;
+	for(uint32_t x=0; x< data_num; x++){
+DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=OFM_BLmax)
 #pragma HLS PIPELINE II=1
-		float tmp = Input[tm][tr][tc];
-		if((tmp < 0.0f)&&IsNL)
-			tmp_out = tmp*0.1f;
-		else
-			tmp_out = tmp;
-		union {float f; uint32_t u;} tmp_32;
-		tmp_32.f = tmp_out;
-		local_buf[cnt].range(bn_local*32+31, bn_local*32) = tmp_32.u;
-		bn_local++;
-		//bn_local = bn_local % 8;//ap_uint<3> 0-7
-		if(bn_local == 8)
-		{
-			bn_local = 0;
-			cnt++;
+//		OFM_base[x] = local_buf[x];
+		float tmp_f32 = local_buf.read();
+		OFM_base[x] = tmp_f32;
+	}
+}
+
+void pp_cont(hls::stream<float> &local_buf /*float *local_buf*/, float output_buffer[Tm][Tr][Tc], float *bias_buffer,
+				uint8_t TR_MIN, uint8_t TC_MIN, uint32_t OHxOW, uint16_t ofm_w, bool IsNL, bool IsBias,
+				uint16_t m, uint32_t offset, uint32_t burstlen, uint32_t blmax_tc, uint16_t T2_MIN,
+				uint16_t *TBL_MIN_p, uint32_t *ofm_offset_p, bool IsAllCont, bool IsColCont, bool Init_en){
+
+#pragma HLS INLINE off
+	static uint16_t tr,tm,tc;
+	static uint16_t t1, t2;
+	static uint32_t tbl;
+
+	if(Init_en){
+		t1 = 0;
+		t2 = 0;
+		tbl = 0;
+	}
+
+	uint32_t tbl_r = tbl << 8;
+	if(tbl_r==0){
+		tc = 0;
+		if(IsAllCont){
+			tm = 0;
+			tr = 0;
+		}else if(IsColCont){
+			tm = t1;
+			tr = 0;
+		}else{
+			tm = t1;
+			tr = t2;
 		}
 	}
+	uint16_t TBL_MIN = MIN(OFM_BLmax, burstlen-tbl_r);
+//	uint8_t bl_cnt = 0;
+	for(int tbl_min=0; tbl_min < TBL_MIN; tbl_min++){
+DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=OFM_BLmax)
+#pragma HLS PIPELINE II=1
+		float tmp_out = postproc(output_buffer[tm][tr][tc], bias_buffer[m+tm], IsBias, IsNL);
+//		local_buf[bl_cnt] = tmp_out;
+//		bl_cnt++;
+		local_buf.write(tmp_out);
+		tc++;
+		if(IsColCont)
+		if(tc==TC_MIN){
+			tc = 0;
+			tr++;
+			if(IsAllCont)
+			if(tr==TR_MIN){
+				tr = 0;
+				tm++;
+			}
+		}
 
-	*tm_n = tm;
-	*tr_n = tr;
+	}
+
+	uint32_t ofm_offset0 = offset + tbl_r;
+	uint32_t ofm_offset;
+	if(IsAllCont){
+		ofm_offset = ofm_offset0;
+	}else if(IsColCont){
+		ofm_offset = ofm_offset0 + t1*OHxOW;
+	}else{
+		ofm_offset = ofm_offset0 + t1*OHxOW + t2*ofm_w;
+	}
+
+	*TBL_MIN_p = TBL_MIN;
+	*ofm_offset_p = ofm_offset;
+
+	tbl++;
+	if(tbl==blmax_tc){
+		tbl = 0;
+		t2++;
+		if(t2==T2_MIN){
+			t2=0;
+			t1++;
+		}
+	}
 }
 
-void ofm_mmcpy_row(ap_uint<256> *Output, ap_uint<256> local_buf[Tc/8+2], int offset, int OHxOW, int Output_w, int TC_MIN, uint8_t tm, uint8_t tr,bool enable)
-{
-	if(!enable)
-		return;
+void ofm_df_warpper(float output_buffer[Tm][Tr][Tc], float bias_buffer[MAX_BETA_LENGTH],
+		float *Output,uint16_t m, uint16_t ofm_w, bool IsAllCont, bool IsColCont,
+		uint32_t Tcomb_TC, uint32_t offset, uint32_t burstlen, uint32_t blmax_tc, uint16_t T2_MIN,
+		uint8_t TR_MIN, uint8_t TC_MIN, uint32_t OHxOW, bool IsNL, bool IsBias){
 
-	int ofm_offset = tm*OHxOW + tr*Output_w + offset;
-//	int trans_offset = (ofm_offset >> 3) << 3;
-	int trans_offset = (ofm_offset >> 3);
-	uint16_t loop_cnts = TC_MIN >> 3;
-	if(TC_MIN & 0x7)
-		loop_cnts++;
-	for(int t = 0;t < loop_cnts; t++)
-	{
-#pragma HLS PIPELINE II=1
-		Output[trans_offset + t].range(255, 0) = local_buf[t].range(255, 0);
-//		memcpy((float *)(Output + trans_offset + t*8), local_buf[t], 8*sizeof(float));
+	const uint32_t Tcomb_TC_MAX = Tm*Tr*(Tc/256+1);
+	assert(Tcomb_TC <= Tcomb_TC_MAX);
+	for(uint32_t tcb = 0; tcb < Tcomb_TC; tcb++){
+DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=Tcomb_TC_MAX)
+#pragma HLS DATAFLOW
+//	float local_buf[OFM_BLmax];
+	hls::stream<float> local_buf;
+#pragma HLS STREAM variable=local_buf depth=OFM_BLmax dim=1
+	uint16_t TBL_MIN_p[1];
+	uint32_t ofm_offset_p[1];
+
+		pp_cont( local_buf, output_buffer, bias_buffer,
+			TR_MIN, TC_MIN, OHxOW, ofm_w, IsNL, IsBias,
+			m, offset, burstlen, blmax_tc, T2_MIN,
+			TBL_MIN_p, ofm_offset_p, IsAllCont, IsColCont, tcb==0);
+
+		ofm_mmcpy_cont(Output, local_buf, ofm_offset_p[0], TBL_MIN_p[0]);
 	}
 
 }
 
-void write_back_output_reorg(float output_buffer[Tm][Tr][Tc], ap_uint<256> *Output,int r,int c,int m,uint16_t Output_w,uint16_t Output_h,
-		uint8_t TM_MIN,uint8_t TR_MIN,uint8_t TC_MIN,const int OHxOW, bool IsNL, bool write_flag)
+void write_back_output_reorg(float output_buffer[Tm][Tr][Tc], float bias_buffer[MAX_BETA_LENGTH], /*float bias_buffer[MAX_BETA_LENGTH],*/
+		float *Output, uint16_t r,uint16_t c,uint16_t m,
+		uint16_t ofm_num, uint16_t ofm_h, uint16_t ofm_w,
+		uint8_t TM_MIN, uint8_t TR_MIN, uint8_t TC_MIN, uint32_t OHxOW, bool IsNL, bool IsBias, bool enable)
 {
-	if(!write_flag)
+	if(!enable)
 		return;
 
 	assert((TM_MIN >0)&&(TM_MIN <=Tm));
 	assert((TR_MIN >0)&&(TR_MIN <=Tr));
 	assert((TC_MIN >0)&&(TC_MIN <=Tc));
+	assert((OFM_BLmax>=1)&&(OFM_BLmax<=256));
 
-	const int offset = m*OHxOW + r*Output_w + c;
-	static ap_uint<256> local_buf0[Tc/8+2];
-	static ap_uint<256> local_buf1[Tc/8+2];
-	uint8_t tm_n0, tm_n1, tr_n0, tr_n1;
+	uint32_t offset = m*OHxOW + r*ofm_w + c;
 
-	bool pp = true;
-	uint8_t tr,tm;
-	uint16_t TM_MINxTR_MIN = TM_MIN*TR_MIN;
-	uint16_t t;
-	tr = 0, tm = 0;
-	for(t = 0;t < TM_MINxTR_MIN + 1;t++)
-	{
-		if(pp)
-		{
-			nonlinear_leaky_row( local_buf0, output_buffer, tm, tr, &tm_n0, &tr_n0, TC_MIN, IsNL, t!=TM_MINxTR_MIN);
-			ofm_mmcpy_row( Output, local_buf1, offset, OHxOW, Output_w, TC_MIN, tm_n1, tr_n1, t!=0);
-			pp = false;
-		}else
-		{
-			nonlinear_leaky_row( local_buf1, output_buffer, tm, tr, &tm_n1, &tr_n1, TC_MIN, IsNL, t!=TM_MINxTR_MIN);
-			ofm_mmcpy_row( Output, local_buf0, offset, OHxOW, Output_w, TC_MIN, tm_n0, tr_n0, t!=0);
-			pp = true;
-		}
+	bool IsColCont = (ofm_w==TC_MIN);//equal FMCont
+	bool IsRowCont = (ofm_h==TR_MIN);
+	bool IsAllCont = IsColCont && IsRowCont;
 
-		tr++;
-		if(tr==TR_MIN)
-		{
-			tr = 0;
-			tm++;
-		}
+	uint32_t burstlen;
+	uint16_t T1_MIN, T2_MIN;
+	if(IsAllCont){
+		burstlen = TM_MIN*TR_MIN*TC_MIN;
+		T1_MIN = 1;
+		T2_MIN = 1;
+	}else if(IsColCont){
+		burstlen = TR_MIN*TC_MIN;
+		T1_MIN = TM_MIN;
+		T2_MIN = 1;
+	}else{
+		burstlen = TC_MIN;
+		T1_MIN = TM_MIN;
+		T2_MIN = TR_MIN;
 	}
+
+	// uint32_t burstlen_a_blmax = burstlen + OFM_BLmax;
+	uint8_t add_1b;
+	if(burstlen & 0xFF)
+		add_1b = 1;
+	else
+		add_1b = 0;
+
+	uint32_t blmax_tc =  (burstlen >> 8) + add_1b;
+	uint32_t Tcomb_TC = T1_MIN*T2_MIN*blmax_tc;
+
+	ofm_df_warpper( output_buffer, bias_buffer, Output, m, ofm_w, IsAllCont, IsColCont,
+		Tcomb_TC, offset, burstlen, blmax_tc, T2_MIN, TR_MIN, TC_MIN, OHxOW, IsNL, IsBias);
+
+//	const uint32_t Tcomb_TC_MAX = Tm*Tr*(Tc/256+1);
+//	assert(Tcomb_TC <= Tcomb_TC_MAX);
+//	for(uint32_t tcb = 0; tcb < Tcomb_TC; tcb++){
+//DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=Tcomb_TC_MAX)
+//#pragma HLS DATAFLOW
+//	float local_buf[OFM_BLmax];
+//	uint16_t TBL_MIN_p[1];
+//	uint32_t ofm_offset_p[1];
+//
+//		pp_cont( local_buf, output_buffer, bias_buffer,
+//			TR_MIN, TC_MIN, OHxOW, ofm_w, IsNL, IsBias,
+//			m, offset, burstlen, blmax_tc, T2_MIN,
+//			TBL_MIN_p, ofm_offset_p, IsAllCont, IsColCont, tcb==0);
+//
+//		ofm_mmcpy_cont(Output, local_buf, ofm_offset_p[0], TBL_MIN_p[0]);
+//	}
 }
 
 void pool_yolo2(float Input[Tn][OnChipIB_Height][OnChipIB_Width],float Output[Tm][Tr][Tc],
-		  const int Ksize,const int Kstride,
-		  const int TM_MIN,const int TR_MIN,const int TC_MIN,bool enable)
+		uint8_t Ksize, uint8_t Kstride, uint16_t TM_MIN, uint16_t TR_MIN, uint16_t TC_MIN, bool enable)
 {
 	if(!enable)
 		return;
 
-	uint8_t i,j,tr,tc,of;
 	float tmp[Tn];
 #pragma HLS ARRAY_PARTITION variable=tmp complete dim=1
 
-	for(tr = 0;tr < TR_MIN;tr++)
+	for(uint16_t tr = 0;tr < TR_MIN;tr++){
 DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=Tr)
-		for(tc = 0;tc < TC_MIN;tc++)
+	for(uint16_t tc = 0;tc < TC_MIN;tc++){
 DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=Tc)
-			for(i =0;i < Ksize; i++)
+	for(uint16_t i =0;i < Ksize; i++){
 DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=K)
-				for(j = 0;j < Ksize; j++)
-				{
+	for(uint16_t j = 0;j < Ksize; j++)
+	{
 DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=K)
 #pragma HLS PIPELINE II=1
-					for( of = 0; of < Tn; of++)
-					{
-						if(i==0&&j==0)
-							tmp[of] = -1024*1024;
+		for(uint16_t of = 0; of < Tn; of++)
+		{
+			if(i==0&&j==0)
+				tmp[of] = -1024*1024;
 
-						if(Input[of][tr*Kstride+i][tc*Kstride+j] > tmp[of])
-							tmp[of] = Input[of][tr*Kstride+i][tc*Kstride+j];
+			if(Input[of][tr*Kstride+i][tc*Kstride+j] > tmp[of])
+				tmp[of] = Input[of][tr*Kstride+i][tc*Kstride+j];
 
-						if(i==1&&j==1)
-							Output[of][tr][tc] = tmp[of];
-					}
-				}
-
+			if(i==1&&j==1)
+				Output[of][tr][tc] = tmp[of];
+		}
+	}}}}
 }
 
-void intra_pingpong_wrapper(ap_uint<256> *Input,ap_uint<256> *Weight, float output_buffer[Tm][Tr][Tc],float beta_buffer[MAX_BETA_LENGTH],
-								 float input_buffer0[Tn][OnChipIB_Height][OnChipIB_Width],float input_buffer1[Tn][OnChipIB_Height][OnChipIB_Width],
-								 int IFM_num,int Input_w, int IW_align_256b, int Input_h,int OFM_num,int Ksize,int Kstride,
-								 int TMP_R,int TMP_C,int TMP_M,int TM_MIN,int TR_MIN,int TC_MIN,int TN,int TRow,int TCol,int Padding,
-								 int IHxIW,int KxK,int IFM_numxKxK,int LayerType,int TM,int TMP_X_next[1],int TX_MIN_next[1],bool pingpongx,bool input_flag,bool process_flag)
+void load_compute_wrapper(float *ifm, float *weight, float ofm_buffer[Tm][Tr][Tc], int ksize, int kstride, int ifm_num, int ifm_w, int ifm_h,int ofm_num,
+	 int ofm_h, int ofm_w, int pad_int, int ltype, int IHW, int KK, int INumxKK, int TM, int TN, int TR, int TC, int tm_r, int tr_r, int tc_r,
+	 int tx_n1[3],int TX_MIN_n1[3],bool pp,bool in_flag,bool proc_flag, bool LoadBias, int NTif, uint8_t lmode, bool enable)
 {
+	static float ifm_buffer0[Tn][OnChipIB_Height][OnChipIB_Width];
+#pragma HLS ARRAY_PARTITION variable=ifm_buffer0 complete dim=1
+	static float ifm_buffer1[Tn][OnChipIB_Height][OnChipIB_Width];
+#pragma HLS ARRAY_PARTITION variable=ifm_buffer1 complete dim=1
 	static float weight_buffer0[Tm][Tn][K][K];
 #pragma HLS ARRAY_PARTITION variable=weight_buffer0 complete dim=1
 #pragma HLS ARRAY_PARTITION variable=weight_buffer0 complete dim=2
-
 	static float weight_buffer1[Tm][Tn][K][K];
 #pragma HLS ARRAY_PARTITION variable=weight_buffer1 complete dim=1
 #pragma HLS ARRAY_PARTITION variable=weight_buffer1 complete dim=2
 
-	static int NOP[1];
-	static int tmp_x;
-	static int tmp_tx_min;
+	static int tx_n[2][3];//tmtrtc, between load2compute
+#pragma HLS ARRAY_PARTITION variable=tx_n complete dim=1
+#pragma HLS ARRAY_PARTITION variable=tx_n complete dim=2
+	static int TX_MIN_n[2][3];
+#pragma HLS ARRAY_PARTITION variable=TX_MIN_n complete dim=1
+#pragma HLS ARRAY_PARTITION variable=TX_MIN_n complete dim=2
 
-	if(LayerType==0)
-	{
-		if(!input_flag)
-			return;
+	if(!enable)
+		return ;
 
-		TMP_X_next[0] = TMP_M;//consider by the inner-out loop
-		TX_MIN_next[0] = TM_MIN;// like above
+	int	TR_MIN = MIN(TR,ofm_h-tr_r);
+	int	TC_MIN = MIN(TC,ofm_w-tc_r);
+	int	TM_MIN = MIN(TM,ofm_num-tm_r);
 
-		bool pingpong = 0;
-		int n0[1];
-		int n1[1];
-		int n;
-		for(n = 0;n < IFM_num+TN; n += TN)
-		{
-DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=2048)
-			if(pingpong == 1)
+	if(lmode==0){
+		if(pp){
+			if(ltype == 0)
 			{
-				copy_input_weight(Input,Weight,IFM_num,Input_w,IW_align_256b,Input_h,Ksize,Kstride,TMP_R,TMP_C,TMP_M, n,
-					TM_MIN,TN,TRow,TCol,Padding,input_buffer1,weight_buffer1, n1, n < IFM_num,1,(TMP_M==0)&&(n==0),IHxIW,KxK,IFM_numxKxK,LayerType);
-				compute(input_buffer0,output_buffer,weight_buffer0,beta_buffer, n0,Ksize,Kstride,TMP_M,TM_MIN,TR_MIN,TC_MIN, n!=0);
-				pingpong = 0;
-			}else
+				copy_input_weight(ifm,weight,ifm_num,ifm_w,ifm_h,ksize,kstride,tr_r,tc_r,tm_r, 0,
+					TM_MIN,TN,TR_MIN,TC_MIN,pad_int,ifm_buffer0,weight_buffer0,1,IHW,KK,INumxKK,ltype,in_flag);
+				conv2d_tile(ifm_buffer1, ofm_buffer, weight_buffer1, 0, ksize, kstride, TX_MIN_n[1][0], TX_MIN_n[1][1], TX_MIN_n[1][2], proc_flag);
+			}else if(ltype == 1)
 			{
-				copy_input_weight(Input,Weight,IFM_num,Input_w,IW_align_256b,Input_h,Ksize,Kstride,TMP_R,TMP_C,TMP_M, n,
-					TM_MIN,TN,TRow,TCol,Padding,input_buffer0,weight_buffer0, n0, n < IFM_num,1,(TMP_M==0)&&(n==0),IHxIW,KxK,IFM_numxKxK,LayerType);
-				compute(input_buffer1,output_buffer,weight_buffer1,beta_buffer, n1,Ksize,Kstride,TMP_M,TM_MIN,TR_MIN,TC_MIN, n!=0);
-				pingpong = 1;
+				copy_input_weight(ifm,weight,ifm_num,ifm_w,ifm_h,ksize,kstride,tr_r,tc_r,tm_r,tm_r,
+										TM_MIN,TM,TR_MIN,TC_MIN,0,ifm_buffer0,weight_buffer0,0,IHW,KK,INumxKK,ltype,in_flag);
+				pool_yolo2(ifm_buffer1, ofm_buffer, ksize, kstride, TX_MIN_n[1][0], TX_MIN_n[1][1], TX_MIN_n[1][2], proc_flag);
 			}
+
+			tx_n[0][0] = tm_r; tx_n[0][1] = tr_r; tx_n[0][2] = tc_r;
+			TX_MIN_n[0][0] = TM_MIN; TX_MIN_n[0][1] = TR_MIN; TX_MIN_n[0][2] = TC_MIN;
+
+			tx_n1[0] = tx_n[1][0]; tx_n1[1] = tx_n[1][1]; tx_n1[2] = tx_n[1][2];
+			TX_MIN_n1[0] = TX_MIN_n[1][0]; TX_MIN_n1[1] = TX_MIN_n[1][1]; TX_MIN_n1[2] = TX_MIN_n[1][2];
+		}else{
+			if(ltype == 0)
+			{
+				copy_input_weight(ifm,weight,ifm_num,ifm_w,ifm_h,ksize,kstride,tr_r,tc_r,tm_r, 0,
+					TM_MIN,TN,TR_MIN,TC_MIN,pad_int,ifm_buffer1,weight_buffer1,1,IHW,KK,INumxKK,ltype,in_flag);
+				conv2d_tile(ifm_buffer0, ofm_buffer, weight_buffer0, 0, ksize, kstride, TX_MIN_n[0][0], TX_MIN_n[0][1], TX_MIN_n[0][2], proc_flag);
+			}else if(ltype == 1)
+			{
+				copy_input_weight(ifm,weight,ifm_num,ifm_w,ifm_h,ksize,kstride,tr_r,tc_r,tm_r,tm_r,
+										TM_MIN,TM,TR_MIN,TC_MIN,0,ifm_buffer1,weight_buffer1,0,IHW,KK,INumxKK,ltype,in_flag);
+				pool_yolo2(ifm_buffer0, ofm_buffer, ksize, kstride, TX_MIN_n[0][0], TX_MIN_n[0][1], TX_MIN_n[0][2], proc_flag);
+			}
+
+			tx_n[1][0] = tm_r; tx_n[1][1] = tr_r; tx_n[1][2] = tc_r;
+			TX_MIN_n[1][0] = TM_MIN; TX_MIN_n[1][1] = TR_MIN; TX_MIN_n[1][2] = TC_MIN;
+
+			tx_n1[0] = tx_n[0][0]; tx_n1[1] = tx_n[0][1]; tx_n1[2] = tx_n[0][2];
+			TX_MIN_n1[0] = TX_MIN_n[0][0]; TX_MIN_n1[1] = TX_MIN_n[0][1]; TX_MIN_n1[2] = TX_MIN_n[0][2];
 		}
+	}else{
+			if(ltype == 0)
+			{
+				bool pp_tn = 1;
+				int tn_n[2];
+				uint16_t tn_r = 0;
+				for(int tn = 0; tn < NTif+1; tn++)
+				{
+					bool in_flag = tn < NTif;
+					bool proc_flag = tn > 0;
+					// uint16_t tn_r = tn*TN;
+					if(pp_tn){
+						copy_input_weight(ifm,weight,ifm_num,ifm_w,ifm_h,ksize,kstride,tr_r,tc_r,tm_r, tn_r,
+							TM_MIN,TN,TR_MIN,TC_MIN,pad_int,ifm_buffer0,weight_buffer0,1,IHW,KK,INumxKK,ltype,in_flag);
+						conv2d_tile(ifm_buffer1, ofm_buffer, weight_buffer1, tn_n[1], ksize, kstride, TX_MIN_n[1][0], TX_MIN_n[1][1], TX_MIN_n[1][2], proc_flag);
+
+						tn_n[0] = tn_r;
+						tx_n[0][0] = tm_r; tx_n[0][1] = tr_r; tx_n[0][2] = tc_r;
+						TX_MIN_n[0][0] = TM_MIN; TX_MIN_n[0][1] = TR_MIN; TX_MIN_n[0][2] = TC_MIN;
+						tn_r += TN;
+
+						pp_tn = 0;
+					}else{
+						copy_input_weight(ifm,weight,ifm_num,ifm_w,ifm_h,ksize,kstride,tr_r,tc_r,tm_r, tn_r,
+							TM_MIN,TN,TR_MIN,TC_MIN,pad_int,ifm_buffer1,weight_buffer1,1,IHW,KK,INumxKK,ltype,in_flag);
+						conv2d_tile(ifm_buffer0, ofm_buffer, weight_buffer0, tn_n[0], ksize, kstride, TX_MIN_n[0][0], TX_MIN_n[0][1], TX_MIN_n[0][2], proc_flag);
+
+						tn_n[1] = tn_r;
+						tx_n[1][0] = tm_r; tx_n[1][1] = tr_r; tx_n[1][2] = tc_r;
+						TX_MIN_n[1][0] = TM_MIN; TX_MIN_n[1][1] = TR_MIN; TX_MIN_n[1][2] = TC_MIN;
+						tn_r += TN;
+
+						pp_tn = 1;
+					}
+				}
+			}
+
+			if(pp){
+				tx_n1[0] = tx_n[1][0]; tx_n1[1] = tx_n[1][1]; tx_n1[2] = tx_n[1][2];
+				TX_MIN_n1[0] = TX_MIN_n[1][0]; TX_MIN_n1[1] = TX_MIN_n[1][1]; TX_MIN_n1[2] = TX_MIN_n[1][2];
+			}else{
+				tx_n1[0] = tx_n[0][0]; tx_n1[1] = tx_n[0][1]; tx_n1[2] = tx_n[0][2];
+				TX_MIN_n1[0] = TX_MIN_n[0][0]; TX_MIN_n1[1] = TX_MIN_n[0][1]; TX_MIN_n1[2] = TX_MIN_n[0][2];
+			}
 	}
-	else if(LayerType==1)
-	{
-		if(pingpongx==0)
-		{
-			TMP_X_next[0] = tmp_x;
-			TX_MIN_next[0] = tmp_tx_min;
-			tmp_x = TMP_M;
-			tmp_tx_min = TM_MIN;
-
-			copy_input_weight(Input,Weight,IFM_num,Input_w,IW_align_256b,Input_h,Ksize,Kstride,TMP_R,TMP_C,TMP_M,TMP_M,
-				TM_MIN,TM,TRow,TCol,0,input_buffer0,weight_buffer0,NOP,input_flag,0,0,IHxIW,KxK,IFM_numxKxK,LayerType);
-			pool_yolo2(input_buffer1,output_buffer,Ksize,Kstride,TX_MIN_next[0],TR_MIN,TC_MIN,process_flag);
-		}else
-		{
-			TMP_X_next[0] = tmp_x;
-			TX_MIN_next[0] = tmp_tx_min;
-			tmp_x = TMP_M;
-			tmp_tx_min = TM_MIN;
-
-			copy_input_weight(Input,Weight,IFM_num,Input_w,IW_align_256b,Input_h,Ksize,Kstride,TMP_R,TMP_C,TMP_M,TMP_M,
-				TM_MIN,TM,TRow,TCol,0,input_buffer1,weight_buffer1,NOP,input_flag,0,0,IHxIW,KxK,IFM_numxKxK,LayerType);
-			pool_yolo2(input_buffer0,output_buffer,Ksize,Kstride,TX_MIN_next[0],TR_MIN,TC_MIN,process_flag);
-		}
-
-	}
-
 }
 
-void beta_copy(float beta_buffer[MAX_BETA_LENGTH], ap_uint<256> *Beta, int OFM_num)
-{
-	static ap_uint<256> local_buf[MAX_BETA_LENGTH/8+2];
-	int loop_cnts = OFM_num >> 3;
-	if(OFM_num & 0x7)
-		loop_cnts++;
-
-	for(int t = 0; t < loop_cnts; t++)
-	{
-#pragma HLS PIPELINE II=1
-		local_buf[t].range(255, 0) = Beta[t].range(255, 0);
-//		memcpy(local_buf[t], (float *)(Beta + t*8), 8*sizeof(float));
-	}
-
-	uint8_t cnt = 1;
-	uint8_t bn = 0;
-	ap_uint<256> tmp_256b;
-	tmp_256b.range(255, 0) = local_buf[0].range(255, 0);
-//	memcpy(tmp_256b, local_buf[0], 8*sizeof(float));
-	for(int t = 0; t < OFM_num; t++)
-	{
-#pragma HLS PIPELINE II=1
-		union {float f; uint32_t u;} tmp_32;
-		tmp_32.u = tmp_256b.range(bn*32+31,bn*32);
-		beta_buffer[t] = tmp_32.f;
-//		beta_buffer[t] = tmp_256b[bn];
-		bn++;
-		if(bn==8)
-		{
-			bn = 0;
-			tmp_256b.range(255, 0) = local_buf[cnt].range(255, 0);
-//			memcpy(tmp_256b, local_buf[cnt], 8*sizeof(float));
-			cnt++;
-		}
-	}
-
-
-
-}
-
-void YOLO2_FPGA(ap_uint<256> *Input,ap_uint<256> *Output,ap_uint<256> *Weight,ap_uint<256> *Beta, int IFM_num, int OFM_num,
-							   int Ksize, int Kstride,
-							   int Input_w, int Input_h, int Output_w, int Output_h, int Padding, bool IsNL, bool IsBN,
+void YOLO2_FPGA(float *Input,float *Output,float *Weight,float *Beta, int IFM_num, int OFM_num,
+							   int Ksize, int Kstride, int Input_w, int Input_h, int Output_w, int Output_h, int Padding, bool IsNL,
 							   int TM, int TN, int TR, int TC,
-							   int OFM_num_bound, int mLoopsxTM, int mLoops_a1xTM, int LayerType)
+							   int32_t NToy, int32_t NTox, int32_t NTof, int32_t NTcomb, int32_t NTif, uint8_t lmode, int32_t NTcomb_l, int LayerType)
 {
-#pragma HLS INTERFACE m_axi depth=512 port=Input    offset=slave bundle=DATA_BUS num_read_outstanding=1 num_write_outstanding=1 max_read_burst_length=32 max_write_burst_length=32
-#pragma HLS INTERFACE m_axi depth=512 port=Output    offset=slave bundle=DATA_BUS num_read_outstanding=1 num_write_outstanding=1 max_read_burst_length=32 max_write_burst_length=32
-#pragma HLS INTERFACE m_axi depth=512 port=Weight offset=slave bundle=DATA_BUS1 num_read_outstanding=1 max_read_burst_length=128
-#pragma HLS INTERFACE m_axi depth=512 port=Beta   offset=slave bundle=DATA_BUS1 num_read_outstanding=1 max_read_burst_length=128
+#pragma HLS INTERFACE m_axi depth=512 port=Input    offset=slave bundle=DATA_BUS num_read_outstanding=1 num_write_outstanding=1 max_read_burst_length=256 max_write_burst_length=256
+#pragma HLS INTERFACE m_axi depth=512 port=Output    offset=slave bundle=DATA_BUS num_read_outstanding=1 num_write_outstanding=1 max_read_burst_length=256 max_write_burst_length=256
+#pragma HLS INTERFACE m_axi depth=512 port=Weight offset=slave bundle=DATA_BUS1 num_read_outstanding=1 max_read_burst_length=256
+#pragma HLS INTERFACE m_axi depth=512 port=Beta   offset=slave bundle=DATA_BUS1 num_read_outstanding=1 max_read_burst_length=256
 
 #pragma HLS INTERFACE s_axilite register port=return bundle=CTRL_BUS
 #pragma HLS INTERFACE s_axilite register port=IFM_num bundle=CTRL_BUS
@@ -542,15 +1017,18 @@ void YOLO2_FPGA(ap_uint<256> *Input,ap_uint<256> *Output,ap_uint<256> *Weight,ap
 #pragma HLS INTERFACE s_axilite register port=Output_h bundle=CTRL_BUS
 #pragma HLS INTERFACE s_axilite register port=Padding bundle=CTRL_BUS
 #pragma HLS INTERFACE s_axilite register port=IsNL bundle=CTRL_BUS
-#pragma HLS INTERFACE s_axilite register port=IsBN bundle=CTRL_BUS
 #pragma HLS INTERFACE s_axilite register port=TM bundle=CTRL_BUS
 #pragma HLS INTERFACE s_axilite register port=TN bundle=CTRL_BUS
 #pragma HLS INTERFACE s_axilite register port=TR bundle=CTRL_BUS
 #pragma HLS INTERFACE s_axilite register port=TC bundle=CTRL_BUS
 
-#pragma HLS INTERFACE s_axilite register port=OFM_num_bound bundle=CTRL_BUS
-#pragma HLS INTERFACE s_axilite register port=mLoopsxTM bundle=CTRL_BUS
-#pragma HLS INTERFACE s_axilite register port=mLoops_a1xTM bundle=CTRL_BUS
+#pragma HLS INTERFACE s_axilite register port=NToy bundle=CTRL_BUS
+#pragma HLS INTERFACE s_axilite register port=NTox bundle=CTRL_BUS
+#pragma HLS INTERFACE s_axilite register port=NTof bundle=CTRL_BUS
+#pragma HLS INTERFACE s_axilite register port=NTcomb bundle=CTRL_BUS
+#pragma HLS INTERFACE s_axilite register port=NTif bundle=CTRL_BUS
+#pragma HLS INTERFACE s_axilite register port=lmode bundle=CTRL_BUS
+#pragma HLS INTERFACE s_axilite register port=NTcomb_l bundle=CTRL_BUS
 #pragma HLS INTERFACE s_axilite register port=LayerType bundle=CTRL_BUS
 
 #pragma HLS INTERFACE s_axilite register port=Input bundle=CTRL_BUS
@@ -572,87 +1050,80 @@ void YOLO2_FPGA(ap_uint<256> *Input,ap_uint<256> *Output,ap_uint<256> *Weight,ap
 	assert((TR > 0)&&(TR <= Tr));
 	assert((TC > 0)&&(TC <= Tc));
 
-	const int TRow = (TR-1)*Kstride+Ksize;
-	const int TCol = (TC-1)*Kstride+Ksize;
 	const int KxK = Ksize*Ksize;
 	const int IFM_numxKxK = IFM_num*KxK;
-	//const int IHxIW   = Input_h*Input_w;
-	//const int OHxOW = Output_h*Output_w;
 
-	uint16_t IW_align_256b = (Input_w >> 3) << 3;
-	if(Input_w & 0x7)
-		IW_align_256b += 8;
-	uint16_t OW_align_256b = (Output_w >> 3) << 3;
-	if(Output_w & 0x7)
-		OW_align_256b += 8;
+	const int IHxIW   = Input_h*Input_w;
+	const int OHxOW = Output_h*Output_w;
 
-	assert((OW_align_256b%8==0)&&(IW_align_256b%8==0));
-	const int OHxOW = Output_h*OW_align_256b;
-	const int IHxIW = Input_h*IW_align_256b;
+	static float bias_buffer[MAX_BETA_LENGTH];
+	static float ofm_buffer0[Tm][Tr][Tc];
+#pragma HLS ARRAY_PARTITION variable=ofm_buffer0 complete dim=1
+	static float ofm_buffer1[Tm][Tr][Tc];
+#pragma HLS ARRAY_PARTITION variable=ofm_buffer1 complete dim=1
 
-	static float input_buffer0[Tn][OnChipIB_Height][OnChipIB_Width];
-#pragma HLS ARRAY_PARTITION variable=input_buffer0 complete dim=1
-	static float input_buffer1[Tn][OnChipIB_Height][OnChipIB_Width];
-#pragma HLS ARRAY_PARTITION variable=input_buffer1 complete dim=1
-	static float output_buffer[Tm][Tr][Tc];
-#pragma HLS ARRAY_PARTITION variable=output_buffer complete dim=1
-	static float output_buffer1[Tm][Tr][Tc];
-#pragma HLS ARRAY_PARTITION variable=output_buffer1 complete dim=1
-	static float beta_buffer[MAX_BETA_LENGTH];
+	int tx_n10[3], tx_n11[3];//tmtrtc, between compute2store
+#pragma HLS ARRAY_PARTITION variable=tx_n10 complete dim=1
+#pragma HLS ARRAY_PARTITION variable=tx_n11 complete dim=1
+	int TX_MIN_n10[3], TX_MIN_n11[3];
+#pragma HLS ARRAY_PARTITION variable=TX_MIN_n10 complete dim=1
+#pragma HLS ARRAY_PARTITION variable=TX_MIN_n11 complete dim=1
 
-/////////////////////////////////param
-	int r, c, m;
-	int TM_MIN,TR_MIN,TC_MIN;
-///////////////////////////////////////
+	bool IsBias;
+	if(LayerType==0){
+		memcpy(bias_buffer,Beta, OFM_num*sizeof(float));
+		IsBias = 1;
+	}else{
+		IsBias = 0;
+	}
 
-	int m0[1], m1[1];
-	int TM_MIN0[1], TM_MIN1[1];
-	bool pingpongm;
+	uint16_t tr, tc, tm;
+	uint16_t TR_MIN, TC_MIN, TM_MIN;
+	uint16_t tm_r, tr_r, tc_r;
+	bool in_flag, proc_flag, out_flag, lc_enable;
 
-	if(LayerType==0)
-		beta_copy( beta_buffer, Beta, OFM_num);
-		//memcpy(beta_buffer,Beta, OFM_num*sizeof(float));
-
-	for(r = 0; r < Output_h; r += TR)
-	{
-DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=1024)
-		TR_MIN = MIN(TR,Output_h-r);
-		for(c = 0; c < Output_w; c += TC)
-		{
-DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=1024)
-			TC_MIN = MIN(TC,Output_w-c);
-			pingpongm = 0;
-			for(m = 0; m < OFM_num_bound; m += TM)
-			{
-DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=2048)
-				TM_MIN = MIN(TM, OFM_num-m);
-				bool Mne0 = (m!=0);
-				bool Mne1 = (m!=TM);
-				bool MnemLps = (m!=mLoopsxTM);
-				bool MneMLps_a1 = (m!=mLoops_a1xTM);
-				bool input_flag = LayerType ? MnemLps&&MneMLps_a1: MnemLps;
-				bool process_flag = LayerType ? Mne0&&MneMLps_a1 : MnemLps;
-				bool write_flag = LayerType ? Mne0&&Mne1 : Mne0;
-
-				if(pingpongm==0)
-				{
-					intra_pingpong_wrapper(Input,Weight,output_buffer1,beta_buffer,input_buffer0,input_buffer1,
-									IFM_num, Input_w, IW_align_256b, Input_h, OFM_num, Ksize, Kstride,
-									r, c, m, TM_MIN, TR_MIN, TC_MIN, TN, TRow, TCol, Padding,IHxIW,KxK,IFM_numxKxK,LayerType,TM, m1,TM_MIN1, pingpongm, input_flag, process_flag);
-
-					write_back_output_reorg(output_buffer,Output, r, c, m0[0],OW_align_256b,Output_h, TM_MIN0[0], TR_MIN, TC_MIN, OHxOW, IsNL, write_flag);
-					pingpongm = 1;
-				}else
-				{
-					intra_pingpong_wrapper(Input,Weight,output_buffer,beta_buffer,input_buffer0,input_buffer1,
-									IFM_num, Input_w, IW_align_256b, Input_h, OFM_num, Ksize, Kstride,
-									r, c, m, TM_MIN, TR_MIN, TC_MIN, TN, TRow, TCol, Padding,IHxIW,KxK,IFM_numxKxK,LayerType,TM, m0,TM_MIN0, pingpongm, input_flag, process_flag);
-
-					write_back_output_reorg(output_buffer1,Output, r, c, m1[0],OW_align_256b,Output_h, TM_MIN1[0], TR_MIN, TC_MIN, OHxOW, IsNL, write_flag);
-					pingpongm = 0;
-				}
-
-			}
+	tr = 0; tc = 0; tm = 0;
+	tm_r = 0; tr_r = 0; tc_r = 0;
+	bool pp = 1;
+	for(int ntc = 0; ntc < NTcomb_l; ntc++){
+		if(lmode==0){
+			in_flag = ntc < NTcomb;
+			proc_flag = (ntc > 0)&& (ntc < NTcomb + 1);
+			out_flag = ntc > 1;
+			lc_enable = 1;
+		}else{
+			in_flag = 1;
+			proc_flag = 1;
+			out_flag = ntc > 0;
+			lc_enable = ntc < NTcomb;
 		}
+
+		if(pp){
+			load_compute_wrapper(Input, Weight, ofm_buffer0, Ksize, Kstride, IFM_num, Input_w, Input_h, OFM_num, Output_h, Output_w,
+				Padding, LayerType, IHxIW, KxK, IFM_numxKxK, TM, TN, TR, TC, tm_r, tr_r, tc_r,
+				tx_n10, TX_MIN_n10, pp, in_flag, proc_flag, IsBias, NTif, lmode, lc_enable);
+
+			write_back_output_reorg( ofm_buffer1, bias_buffer, Output, tx_n11[1], tx_n11[2], tx_n11[0], OFM_num, Output_h, Output_w, TX_MIN_n11[0], TX_MIN_n11[1], TX_MIN_n11[2], OHxOW, IsNL, IsBias, out_flag);
+			pp = 0;
+		}else{
+			load_compute_wrapper(Input, Weight, ofm_buffer1, Ksize, Kstride, IFM_num, Input_w, Input_h, OFM_num, Output_h, Output_w,
+				Padding, LayerType, IHxIW, KxK, IFM_numxKxK, TM, TN, TR, TC, tm_r, tr_r, tc_r,
+				tx_n11, TX_MIN_n11, pp, in_flag, proc_flag, IsBias, NTif, lmode, lc_enable);
+
+			write_back_output_reorg( ofm_buffer0, bias_buffer, Output, tx_n10[1], tx_n10[2], tx_n10[0], OFM_num, Output_h, Output_w, TX_MIN_n10[0], TX_MIN_n10[1], TX_MIN_n10[2], OHxOW, IsNL, IsBias, out_flag);
+			pp = 1;
+		}
+
+		tm++;
+		tm_r += TM;
+		if(tm==NTof)
+		{
+			tm=0; tc++;
+			tm_r = 0; tc_r += TC;
+			if(tc==NTox)
+			{
+				tc=0; tr++;
+				tc_r = 0; tr_r += TR;
+		}}
 	}
 }

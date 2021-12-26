@@ -109,56 +109,63 @@
 #include <stdint.h>
 #include <sys/time.h>
 
-#define XYOLO2_FPGA_CTRL_BUS_ADDR_AP_CTRL            0x00
-#define XYOLO2_FPGA_CTRL_BUS_ADDR_GIE                0x04
-#define XYOLO2_FPGA_CTRL_BUS_ADDR_IER                0x08
-#define XYOLO2_FPGA_CTRL_BUS_ADDR_ISR                0x0c
-#define XYOLO2_FPGA_CTRL_BUS_ADDR_INPUT_V_DATA       0x10
-#define XYOLO2_FPGA_CTRL_BUS_BITS_INPUT_V_DATA       32
-#define XYOLO2_FPGA_CTRL_BUS_ADDR_OUTPUT_V_DATA      0x18
-#define XYOLO2_FPGA_CTRL_BUS_BITS_OUTPUT_V_DATA      32
-#define XYOLO2_FPGA_CTRL_BUS_ADDR_WEIGHT_V_DATA      0x20
-#define XYOLO2_FPGA_CTRL_BUS_BITS_WEIGHT_V_DATA      32
-#define XYOLO2_FPGA_CTRL_BUS_ADDR_BETA_V_DATA        0x28
-#define XYOLO2_FPGA_CTRL_BUS_BITS_BETA_V_DATA        32
-#define XYOLO2_FPGA_CTRL_BUS_ADDR_IFM_NUM_DATA       0x30
-#define XYOLO2_FPGA_CTRL_BUS_BITS_IFM_NUM_DATA       32
-#define XYOLO2_FPGA_CTRL_BUS_ADDR_OFM_NUM_DATA       0x38
-#define XYOLO2_FPGA_CTRL_BUS_BITS_OFM_NUM_DATA       32
-#define XYOLO2_FPGA_CTRL_BUS_ADDR_KSIZE_DATA         0x40
-#define XYOLO2_FPGA_CTRL_BUS_BITS_KSIZE_DATA         32
-#define XYOLO2_FPGA_CTRL_BUS_ADDR_KSTRIDE_DATA       0x48
-#define XYOLO2_FPGA_CTRL_BUS_BITS_KSTRIDE_DATA       32
-#define XYOLO2_FPGA_CTRL_BUS_ADDR_INPUT_W_DATA       0x50
-#define XYOLO2_FPGA_CTRL_BUS_BITS_INPUT_W_DATA       32
-#define XYOLO2_FPGA_CTRL_BUS_ADDR_INPUT_H_DATA       0x58
-#define XYOLO2_FPGA_CTRL_BUS_BITS_INPUT_H_DATA       32
-#define XYOLO2_FPGA_CTRL_BUS_ADDR_OUTPUT_W_DATA      0x60
-#define XYOLO2_FPGA_CTRL_BUS_BITS_OUTPUT_W_DATA      32
-#define XYOLO2_FPGA_CTRL_BUS_ADDR_OUTPUT_H_DATA      0x68
-#define XYOLO2_FPGA_CTRL_BUS_BITS_OUTPUT_H_DATA      32
-#define XYOLO2_FPGA_CTRL_BUS_ADDR_PADDING_DATA       0x70
-#define XYOLO2_FPGA_CTRL_BUS_BITS_PADDING_DATA       32
-#define XYOLO2_FPGA_CTRL_BUS_ADDR_ISNL_DATA          0x78
-#define XYOLO2_FPGA_CTRL_BUS_BITS_ISNL_DATA          1
-#define XYOLO2_FPGA_CTRL_BUS_ADDR_ISBN_DATA          0x80
-#define XYOLO2_FPGA_CTRL_BUS_BITS_ISBN_DATA          1
-#define XYOLO2_FPGA_CTRL_BUS_ADDR_TM_DATA            0x88
-#define XYOLO2_FPGA_CTRL_BUS_BITS_TM_DATA            32
-#define XYOLO2_FPGA_CTRL_BUS_ADDR_TN_DATA            0x90
-#define XYOLO2_FPGA_CTRL_BUS_BITS_TN_DATA            32
-#define XYOLO2_FPGA_CTRL_BUS_ADDR_TR_DATA            0x98
-#define XYOLO2_FPGA_CTRL_BUS_BITS_TR_DATA            32
-#define XYOLO2_FPGA_CTRL_BUS_ADDR_TC_DATA            0xa0
-#define XYOLO2_FPGA_CTRL_BUS_BITS_TC_DATA            32
-#define XYOLO2_FPGA_CTRL_BUS_ADDR_OFM_NUM_BOUND_DATA 0xa8
-#define XYOLO2_FPGA_CTRL_BUS_BITS_OFM_NUM_BOUND_DATA 32
-#define XYOLO2_FPGA_CTRL_BUS_ADDR_MLOOPSXTM_DATA     0xb0
-#define XYOLO2_FPGA_CTRL_BUS_BITS_MLOOPSXTM_DATA     32
-#define XYOLO2_FPGA_CTRL_BUS_ADDR_MLOOPS_A1XTM_DATA  0xb8
-#define XYOLO2_FPGA_CTRL_BUS_BITS_MLOOPS_A1XTM_DATA  32
-#define XYOLO2_FPGA_CTRL_BUS_ADDR_LAYERTYPE_DATA     0xc0
-#define XYOLO2_FPGA_CTRL_BUS_BITS_LAYERTYPE_DATA     32
+#define XYOLO2_FPGA_CTRL_BUS_ADDR_AP_CTRL        0x00
+#define XYOLO2_FPGA_CTRL_BUS_ADDR_GIE            0x04
+#define XYOLO2_FPGA_CTRL_BUS_ADDR_IER            0x08
+#define XYOLO2_FPGA_CTRL_BUS_ADDR_ISR            0x0c
+#define XYOLO2_FPGA_CTRL_BUS_ADDR_INPUT_R_DATA   0x10
+#define XYOLO2_FPGA_CTRL_BUS_BITS_INPUT_R_DATA   32
+#define XYOLO2_FPGA_CTRL_BUS_ADDR_OUTPUT_R_DATA  0x18
+#define XYOLO2_FPGA_CTRL_BUS_BITS_OUTPUT_R_DATA  32
+#define XYOLO2_FPGA_CTRL_BUS_ADDR_WEIGHT_DATA    0x20
+#define XYOLO2_FPGA_CTRL_BUS_BITS_WEIGHT_DATA    32
+#define XYOLO2_FPGA_CTRL_BUS_ADDR_BETA_DATA      0x28
+#define XYOLO2_FPGA_CTRL_BUS_BITS_BETA_DATA      32
+#define XYOLO2_FPGA_CTRL_BUS_ADDR_IFM_NUM_DATA   0x30
+#define XYOLO2_FPGA_CTRL_BUS_BITS_IFM_NUM_DATA   32
+#define XYOLO2_FPGA_CTRL_BUS_ADDR_OFM_NUM_DATA   0x38
+#define XYOLO2_FPGA_CTRL_BUS_BITS_OFM_NUM_DATA   32
+#define XYOLO2_FPGA_CTRL_BUS_ADDR_KSIZE_DATA     0x40
+#define XYOLO2_FPGA_CTRL_BUS_BITS_KSIZE_DATA     32
+#define XYOLO2_FPGA_CTRL_BUS_ADDR_KSTRIDE_DATA   0x48
+#define XYOLO2_FPGA_CTRL_BUS_BITS_KSTRIDE_DATA   32
+#define XYOLO2_FPGA_CTRL_BUS_ADDR_INPUT_W_DATA   0x50
+#define XYOLO2_FPGA_CTRL_BUS_BITS_INPUT_W_DATA   32
+#define XYOLO2_FPGA_CTRL_BUS_ADDR_INPUT_H_DATA   0x58
+#define XYOLO2_FPGA_CTRL_BUS_BITS_INPUT_H_DATA   32
+#define XYOLO2_FPGA_CTRL_BUS_ADDR_OUTPUT_W_DATA  0x60
+#define XYOLO2_FPGA_CTRL_BUS_BITS_OUTPUT_W_DATA  32
+#define XYOLO2_FPGA_CTRL_BUS_ADDR_OUTPUT_H_DATA  0x68
+#define XYOLO2_FPGA_CTRL_BUS_BITS_OUTPUT_H_DATA  32
+#define XYOLO2_FPGA_CTRL_BUS_ADDR_PADDING_DATA   0x70
+#define XYOLO2_FPGA_CTRL_BUS_BITS_PADDING_DATA   32
+#define XYOLO2_FPGA_CTRL_BUS_ADDR_ISNL_DATA      0x78
+#define XYOLO2_FPGA_CTRL_BUS_BITS_ISNL_DATA      1
+#define XYOLO2_FPGA_CTRL_BUS_ADDR_TM_DATA        0x80
+#define XYOLO2_FPGA_CTRL_BUS_BITS_TM_DATA        32
+#define XYOLO2_FPGA_CTRL_BUS_ADDR_TN_DATA        0x88
+#define XYOLO2_FPGA_CTRL_BUS_BITS_TN_DATA        32
+#define XYOLO2_FPGA_CTRL_BUS_ADDR_TR_DATA        0x90
+#define XYOLO2_FPGA_CTRL_BUS_BITS_TR_DATA        32
+#define XYOLO2_FPGA_CTRL_BUS_ADDR_TC_DATA        0x98
+#define XYOLO2_FPGA_CTRL_BUS_BITS_TC_DATA        32
+#define XYOLO2_FPGA_CTRL_BUS_ADDR_NTOY_DATA      0xa0
+#define XYOLO2_FPGA_CTRL_BUS_BITS_NTOY_DATA      32
+#define XYOLO2_FPGA_CTRL_BUS_ADDR_NTOX_DATA      0xa8
+#define XYOLO2_FPGA_CTRL_BUS_BITS_NTOX_DATA      32
+#define XYOLO2_FPGA_CTRL_BUS_ADDR_NTOF_DATA      0xb0
+#define XYOLO2_FPGA_CTRL_BUS_BITS_NTOF_DATA      32
+#define XYOLO2_FPGA_CTRL_BUS_ADDR_NTCOMB_DATA    0xb8
+#define XYOLO2_FPGA_CTRL_BUS_BITS_NTCOMB_DATA    32
+#define XYOLO2_FPGA_CTRL_BUS_ADDR_NTIF_DATA      0xc0
+#define XYOLO2_FPGA_CTRL_BUS_BITS_NTIF_DATA      32
+#define XYOLO2_FPGA_CTRL_BUS_ADDR_LMODE_DATA     0xc8
+#define XYOLO2_FPGA_CTRL_BUS_BITS_LMODE_DATA     8
+#define XYOLO2_FPGA_CTRL_BUS_ADDR_NTCOMB_L_DATA  0xd0
+#define XYOLO2_FPGA_CTRL_BUS_BITS_NTCOMB_L_DATA  32
+#define XYOLO2_FPGA_CTRL_BUS_ADDR_LAYERTYPE_DATA 0xd8
+#define XYOLO2_FPGA_CTRL_BUS_BITS_LAYERTYPE_DATA 32
+
 
 //#define YOLO2_BASEADDR 0x43c00000
 //#define WEIGHT_BASE (0x10000000) //203767168 = C253D80
@@ -168,7 +175,7 @@
 #define YOLO2_BASEADDR 0xA0000000
 #define WEIGHT_BASE (0x60000000) //203767168 = C253D80
 #define BETA_BASE (0x6C25F000) //43044 = 0xA824
-#define MEM_BASE (0x6C26A000) //416*416*32*4+208*208*32*4=173,056+43,264= 216,320*128 = 0x1A6_8000
+#define MEM_BASE (0x6C400000) //416*416*32*4+208*208*32*4=173,056+43,264= 216,320*128 = 0x1A6_8000
 
 #define Tn 4
 #define Tm 28
@@ -187,16 +194,26 @@
 #define WriteReg(BaseAddress, RegOffset, Data) *(volatile unsigned int*)((BaseAddress) + (RegOffset)) = (Data)
 #define ReadReg(BaseAddress, RegOffset) *(volatile unsigned int*)((BaseAddress) + (RegOffset))
 
+#define HPAGESIZE (4*1024)
+
+void copy_mem2dev(uint8_t *orig,uint32_t byte_num, unsigned long in_buffer);
+
+void copy_dev2mem(uint8_t *dst,uint32_t byte_num, unsigned long in_buffer);
+
+int copy_file2mem(char *bin_file,uint32_t byte_num,unsigned long in_buffer);
+
+int copy_mem2file(char *bin_file,uint32_t byte_num,unsigned long in_buffer);
+
 void copy_mem2dev(uint8_t *orig,uint32_t byte_num, unsigned long in_buffer)
 {
 	int fd = open("/dev/mem", O_RDWR);
 	unsigned char *virtual_addr;
 	uint32_t RequestByteNum;// must page
-	if(byte_num%(4*1024)==0)
+	if(byte_num%(HPAGESIZE)==0)
 		RequestByteNum = byte_num;
 	else
 	{
-		RequestByteNum = (byte_num/(4*1024)+1)*(4*1024);
+		RequestByteNum = ceil(byte_num/(HPAGESIZE*1.0))*(HPAGESIZE);
 	}
 	virtual_addr = (unsigned char *)mmap(NULL, RequestByteNum, PROT_READ | PROT_WRITE, MAP_SHARED, fd, (off_t)in_buffer);
 	if(virtual_addr == MAP_FAILED)
@@ -215,11 +232,11 @@ void copy_dev2mem(uint8_t *dst,uint32_t byte_num, unsigned long in_buffer)
 	int fd = open("/dev/mem", O_RDWR);
 	unsigned char *virtual_addr;
 	uint32_t RequestByteNum;// must page
-	if(byte_num%(4*1024)==0)
+	if(byte_num%(HPAGESIZE)==0)
 		RequestByteNum = byte_num;
 	else
 	{
-		RequestByteNum = (byte_num/(4*1024)+1)*(4*1024);
+		RequestByteNum = ceil(byte_num/(HPAGESIZE*1.0))*(HPAGESIZE);
 	}
 		virtual_addr = (unsigned char *)mmap(NULL, RequestByteNum, PROT_READ | PROT_WRITE, MAP_SHARED, fd, (off_t)in_buffer);
 	if(virtual_addr == MAP_FAILED)
@@ -227,7 +244,9 @@ void copy_dev2mem(uint8_t *dst,uint32_t byte_num, unsigned long in_buffer)
 		perror("Virtual_addr_in mappong for absolute memory access failed!\n");
 		return;
 	}
+	printf("copy start-----byte_num=%d\n",byte_num);
 	memcpy((uint8_t *)dst,virtual_addr,byte_num);
+	printf("copy ok!\n");
 
 	munmap((void *)virtual_addr, byte_num);
 	close(fd);
@@ -235,20 +254,22 @@ void copy_dev2mem(uint8_t *dst,uint32_t byte_num, unsigned long in_buffer)
 
 int copy_file2mem(char *bin_file,uint32_t byte_num,unsigned long in_buffer)
 {
-	unsigned char *buffer = (unsigned char *)malloc(1024*1024);
+	unsigned char *buffer = (unsigned char *)malloc(HPAGESIZE);
 	if(buffer==NULL){
-		printf("cannot malloc buffer 1024*1024 byte\n");
+		printf("cannot malloc buffer %d byte\n", HPAGESIZE);
 		return -1;
 	}
-
+	printf("Total Byte Num = %d\n Address 0x%X\n", byte_num, in_buffer);
 	FILE *fp;
 	if( (fp = fopen(bin_file, "rb")) == NULL)fprintf(stderr,"CANNOT OPEN bin_file\n");
 	int rd_num;
 	unsigned long offset = 0;
-	while(rd_num = fread(buffer, sizeof(unsigned char), 1024*1024, fp))
+	while(rd_num = fread(buffer, sizeof(unsigned char), HPAGESIZE, fp))
 	{
+		if(rd_num < HPAGESIZE)
+			rd_num = HPAGESIZE;
 		copy_mem2dev(buffer,rd_num, in_buffer+offset);
-//		printf("rd_num=%d\n",rd_num);
+//		printf("rd_num=%d, offset=%d\n", rd_num, offset);
 		offset += rd_num;
 	}
 	printf("copy_file2mem offset=%d\n",offset);
@@ -262,9 +283,9 @@ int copy_file2mem(char *bin_file,uint32_t byte_num,unsigned long in_buffer)
 
 int copy_mem2file(char *bin_file,uint32_t byte_num,unsigned long in_buffer)
 {
-	void *buffer = malloc(1024*1024);
+	void *buffer = malloc(HPAGESIZE);
 	if(buffer==NULL){
-		printf("cannot malloc buffer 1024*1024 byte\n");
+		printf("cannot malloc buffer %d byte\n", HPAGESIZE);
 		return -1;
 	}
 
@@ -274,7 +295,7 @@ int copy_mem2file(char *bin_file,uint32_t byte_num,unsigned long in_buffer)
 	int x = byte_num;
 	int addbyte;
 	unsigned long offset = 0;
-	while(addbyte=((x<1024*1024)?x:(1024*1024)))
+	while(addbyte=((x<HPAGESIZE)?x:(HPAGESIZE)))
 	{
 		copy_dev2mem((uint8_t *)buffer,addbyte, in_buffer+offset);
 		fwrite(buffer , sizeof(unsigned char), addbyte, fp);
@@ -283,7 +304,9 @@ int copy_mem2file(char *bin_file,uint32_t byte_num,unsigned long in_buffer)
 	}
 	printf("copy_mem2file offset=%d\n",offset);
 
+
 	fclose(fp);
+
 	free(buffer);
 
 	return 0;

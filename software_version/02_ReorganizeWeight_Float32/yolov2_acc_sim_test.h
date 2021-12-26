@@ -8,7 +8,18 @@
 #define MAX(x,y) ((x)>(y)?(x):(y))
 #define MIN(x,y) ((x)<(y)?(x):(y))
 
-#DEFINE_HEADER#
+#define S 2
+#define K 3
+#define MAX_BETA_LENGTH 1024
+#define Tn 4
+#define Tm 28
+#define Tr 26
+#define Tc 32
+#define OnChipIB_Width 65
+#define OnChipIB_Height 53
+#define TRow_max 53
+#define TCol_max 65
+
 
 #include <assert.h>
 #include <math.h>
