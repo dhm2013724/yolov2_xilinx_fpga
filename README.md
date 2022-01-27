@@ -49,23 +49,24 @@ Experiments show that floating point addition in HLS requires three DSP resource
 
   |  Resource     |  DSP      | BRAM      | LUT        |  FF        | Freq   | Dev    |
   |  -----        |   -----   | -----     | -----      |  -----     | -----  |-----   |
-  |Fixed-16(n4m32)| 153(69%)  | 88(63%)   | 35977(68%) | 36247(34%) |	150MHz |Zedboard|
-  |Float-32(n4m23)| 209(95%)  |115(82%)   | 36348(68%) | 64077(60%) |	140MHz |Zedboard|
-  |Fixed-16(n4m32)| 147(6%)   | 88(10%)   | 36759(13%) | 30447(6%)  |	180MHz |ZCU102  |  
+  |INT16(n4m32) old| 153(69%)  | 88(63%)   | 35977(68%) | 36247(34%) |	150MHz |Zedboard|
+  |FT32(n4m23) old| 209(95%)  |115(82%)   | 36348(68%) | 64077(60%) |	140MHz |Zedboard|
+  |INT16(n4m32) old| 147(6%)   | 88(10%)   | 36759(13%) | 30447(6%)  |	180MHz |ZCU102  |  
+  |FT32-(n8m28,CONV II=3,POOL II=2) current| 259(72%)   | 91(42%)   | 31985(45%) | 53728(38%)  |	180MHz |EdgeBoard(ZU3EG) |  
   
 According to the current design, DSP and BRAM are more expensive. The cost of DSP can be further reduced (there are many bit-width redundant multiplications), and the BRAM cost can be reduced. (As Shen [1] said, BRAM allocates an exponential size of 2 in HLS. Actually, many BRAMs are redundant. ).  
 The performance comparison in the two cases is shown in the following table:  
   
-| Performance              |        |        |        |        |
-|  -----                   | -----  | -----  | -----  | -----  |
-|CNN models	           |YOLO v2 |YOLO v2 | YOLO v2| YOLO v2|
-|Board                     | PYNQ   |Zedboard| ZCU102 |Zedboard|
-|Clock(MHz)                |  150   |  150   |  180   |  140   |
-|Precision	           |Fixed-16|Fixed-16|Fixed-16|Float-32|
-|Power (W)		   |   2.98 |   1.20 | ?      | ?      |
-|Operations (GOP)          |29.47   |29.47   | 29.47  | 29.47  |
-|Performance(GOP/s)	   |25.98   |30.15   | 36.13  |  6.63  |
-|Power Efficiency(GOP/s/W) | 4.20   | 6.02   | ?      | ?      |
+| Performance              |        |        |        |        |       |
+|  -----                   | -----  | -----  | -----  | -----  |-----  |
+|CNN models	               |YOLO v2 |YOLO v2 | YOLO v2| YOLO v2| YOLO v2|
+|Board                     | PYNQ   |Zedboard| ZCU102 |Zedboard|ZU3EG|
+|Clock(MHz)                |  150   |  150   |  180   |  140   |180|
+|Precision	               |Fixed-16|Fixed-16|Fixed-16|Float-32|Float-32|
+|Power (W)		             |   2.98 |   1.20 | ?      | ?      |?|
+|Operations (GOP)          |29.47   |29.47   | 29.47  | 29.47  |29.47|
+|Performance(GOP/s)	       |25.98   |30.15   | 36.13  |  6.63  |11.81|
+|Power Efficiency(GOP/s/W) | 4.20   | 6.02   | ?      | ?      |?|
 
 # Result  
 ![image1](https://github.com/dhm2013724/yolov2_xilinx_fpga/blob/150MHzTn4Tm32Tr26Tc26Cin4Cout2/pynq/result2.jpg)

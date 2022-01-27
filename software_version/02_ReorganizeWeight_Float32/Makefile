@@ -20,3 +20,30 @@ clean:
 	rm -rf yolov2_acc_sim.h
 	rm -rf test
 
+#//darknet origion result
+# mask_scale: Using default '1.000000'
+# Loading weights from yolov2.weights...Done!
+# ../../test_imgs/000000000139.jpg: Predicted in 4.127025 seconds.
+# 845
+# [248]:h=0.227699,w=0.232511,x=0.127223,y=0.502272,objectness=0.846462
+# [266]:h=0.231706,w=0.103453,x=0.511701,y=0.636352,objectness=0.683597
+# tvmonitor: 85%
+# chair: 67%
+
+#//make gen result
+# 845
+# [248]:h=0.227699,w=0.232511,x=0.127223,y=0.502272,objectness=0.846463
+# [266]:h=0.232374,w=0.102902,x=0.511726,y=0.636017,objectness=0.677823
+# tvmonitor: 85%
+# chair: 67%
+# YOLOv2 TEST End
+
+#//make test reulst, but I stil could not understand why replace IB_W with TCol_MIN to combine FM width and height dim would change the result... 
+# ../test_imgs/000000000139.jpg: Predicted in 9.000000 seconds.
+# 845
+# [248]:h=0.227699,w=0.232511,x=0.127223,y=0.502272,objectness=0.846463
+# [266]:h=0.231548,w=0.103424,x=0.511744,y=0.636487,objectness=0.686331
+# [272]:h=0.166968,w=0.111446,x=0.933115,y=0.581340,objectness=0.600695
+# tvmonitor: 85%
+# chair: 68%
+# YOLOv2 TEST End

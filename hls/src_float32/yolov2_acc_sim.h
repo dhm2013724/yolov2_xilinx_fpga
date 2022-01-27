@@ -130,6 +130,7 @@ void yolov2_hls_ps(network *net, float *input)
 	int woffset = 0;
 	int boffset = 0;
 	int TR,TC,TM,TN;
+	int TRow, TCol;
 	int output_w,output_h;
 	int mLoops;
 	int NToy, NTox, NTof, NTcomb, NTif;
@@ -148,10 +149,16 @@ void yolov2_hls_ps(network *net, float *input)
 				output_w = (l.w - l.size + 2*l.pad)/l.stride + 1;
 				output_h = (l.h - l.size + 2*l.pad)/l.stride + 1;
 
-				TR = MIN(((OnChipIB_Height-l.size)/l.stride+1),Tr);//keep Kstride>=1
-				TR = MIN(output_h,TR);
-				TC = MIN(((OnChipIB_Width-l.size)/l.stride+1),Tc);
-				TC = MIN(output_w,TC);
+//				TR = MIN(((OnChipIB_Height-l.size)/l.stride+1),Tr);//keep Kstride>=1
+//				TR = MIN(output_h,TR);
+//				TC = MIN(((OnChipIB_Width-l.size)/l.stride+1),Tc);
+//				TC = MIN(output_w,TC);
+				TC = MIN(((IB_HxW-l.size)/l.stride+1),output_w);
+				TCol = (TC-1)*l.stride + l.size;
+				TR = MIN(((IB_HxW/TCol-l.size)/l.stride+1),output_h);//keep Kernel_stride>=1
+				TR = MIN(TR, TrxTc/TC);
+				TRow = (TR-1)*l.stride + l.size;
+
 				TM = MIN(l.n,Tm);
 				TN = MIN(l.c,Tn);
 
@@ -186,10 +193,16 @@ void yolov2_hls_ps(network *net, float *input)
 				output_w = l.out_h;
 				output_h = l.out_w;
 
-				TR = MIN(((OnChipIB_Height-l.size)/l.stride+1),Tr);//keep Kstride>=1
-				TC = MIN(((OnChipIB_Width-l.size)/l.stride+1),Tc);
-				TR = MIN(output_h,TR);
-				TC = MIN(output_w,TC);
+//				TR = MIN(((OnChipIB_Height-l.size)/l.stride+1),Tr);//keep Kstride>=1
+//				TC = MIN(((OnChipIB_Width-l.size)/l.stride+1),Tc);
+//				TR = MIN(output_h,TR);
+//				TC = MIN(output_w,TC);
+				TC = MIN(((IB_HxW-l.size)/l.stride+1),output_w);
+				TCol = (TC-1)*l.stride + l.size;
+				TR = MIN(((IB_HxW/TCol-l.size)/l.stride+1),output_h);//keep Kernel_stride>=1
+				TR = MIN(TR, TrxTc/TC);
+				TRow = (TR-1)*l.stride + l.size;
+
 				TM = MIN(Tm,Tn);
 				TM = MIN(l.c,TM);
 

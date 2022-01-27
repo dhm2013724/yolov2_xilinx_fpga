@@ -191,6 +191,14 @@
 #define OnChipIB_Height ((Tr-1)*S+K)
 #define MAX_BETA_LENGTH (1024)
 
+const uint32_t IB_W = OnChipIB_Width;
+const uint32_t IB_H = OnChipIB_Height;
+const uint32_t IB_HxW = IB_H*IB_W;
+const uint32_t TnxIB_H = Tn*IB_H;
+const uint32_t TnxIB_HxIB_W = Tn*IB_H*IB_W;
+const uint32_t TrxTc = Tr*Tc;
+
+
 #define WriteReg(BaseAddress, RegOffset, Data) *(volatile unsigned int*)((BaseAddress) + (RegOffset)) = (Data)
 #define ReadReg(BaseAddress, RegOffset) *(volatile unsigned int*)((BaseAddress) + (RegOffset))
 

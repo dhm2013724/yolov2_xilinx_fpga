@@ -1638,19 +1638,19 @@ void forward_region_layer(const layer l, float *net_input)
         softmax_cpu(net_input + index, l.classes + l.background, l.batch*l.n, l.inputs/l.n, l.w*l.h, 1, l.w*l.h, 1, l.output + index);
     }
 
-	char line[256];
-	FILE *fp3;
-	char filename[256];
-	sprintf(filename, "yolo_last_layer_output.txt");
-	printf("YOLO_layer:outputs=%d,%s\n",l.outputs,filename);
-	if( (fp3 = fopen(filename, "w")) == NULL)fprintf(stderr,"CANNOT OPEN\n");
-	int x;
-	for( x = 0; x < l.outputs; x++)
-	{
-		sprintf(line, "%f\n", net_input[x]);
-		if(fputs(line,fp3)<0)fprintf(stderr,"write FILE failed\n");
-	}
-	fclose(fp3);
+//	char line[256];
+//	FILE *fp3;
+//	char filename[256];
+//	sprintf(filename, "yolo_last_layer_output.txt");
+//	printf("YOLO_layer:outputs=%d,%s\n",l.outputs,filename);
+//	if( (fp3 = fopen(filename, "w")) == NULL)fprintf(stderr,"CANNOT OPEN\n");
+//	int x;
+//	for( x = 0; x < l.outputs; x++)
+//	{
+//		sprintf(line, "%f\n", net_input[x]);
+//		if(fputs(line,fp3)<0)fprintf(stderr,"write FILE failed\n");
+//	}
+//	fclose(fp3);
 
     return;
 }
