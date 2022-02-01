@@ -123,7 +123,7 @@ DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=IB_W)
 			if(t3 < px_l)
 				t3_idx = t3;
 			else
-				t3_idx = t3+col_max;
+				t3_idx = t3+col_len;
 			uint32_t ifm_idx = t2_idx*TCol_MIN + t3_idx;
 
 			for(uint16_t t1 = 0;t1 < Tn; t1++){

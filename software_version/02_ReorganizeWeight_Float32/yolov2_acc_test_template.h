@@ -136,9 +136,11 @@ DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=TnxIB_HxIB_W)
 					input_buffer[t1][ifm_idx] = ifm_addr[tbl];
 
 					t3++;
+					// if(IsColCont)
 					if(t3==col_len){
 						t3 = 0;
 						t2++;
+						// if(IsAllCont)
 						if(t2==row_len){
 								t2 = 0;
 								t1++;
@@ -158,7 +160,7 @@ DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=IB_W)
 			if(t3 < px_l)
 				t3_idx = t3;
 			else
-				t3_idx = t3+col_max;
+				t3_idx = t3+col_len;
 			uint32_t ifm_idx = t2_idx*TCol_MIN + t3_idx;
 
 			for(uint16_t t1 = 0;t1 < Tn; t1++){
@@ -282,7 +284,7 @@ void copy_input_weight(float *input,float *Weight,int IFM_num,int Input_w, int I
 
 void conv2d_tile(float input_buffer[Tn][IB_HxW],float output_buffer[Tm][TrxTc],
 		float weight_buffer[Tm][Tn][K][K],int n_next,
-		const int Ksize,const int Kstride,
+		const int Ksize,const int Kstride, uint16_t TCol_MIN,
 		const int TM_MIN,const int TR_MIN,const int TC_MIN,bool enable)
 {
 	if(!enable)
@@ -290,7 +292,7 @@ void conv2d_tile(float input_buffer[Tn][IB_HxW],float output_buffer[Tm][TrxTc],
 		return;
 	}
 
-	uint16_t TCol_MIN_l = (TC_MIN-1)*Kstride + Ksize;
+	// uint16_t TCol_MIN_l = (TC_MIN-1)*Kstride + Ksize;
 
 	uint8_t i,j,tm,tn;
 	uint16_t tr,tc;
@@ -312,7 +314,7 @@ DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=Tr)
 				{
 DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=Tc)
 #pragma HLS PIPELINE II=3
-					uint32_t ifm_idx = (Kstride*tr+i)*TCol_MIN_l + Kstride*tc+j;
+					uint32_t ifm_idx = (Kstride*tr+i)*TCol_MIN + Kstride*tc+j;
 					for(tm = 0;tm < Tm;tm++)
 					{
 #pragma HLS DEPENDENCE variable=output_buffer inter false
@@ -561,12 +563,12 @@ DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=OFM_BLmax)
 // }
 
 void pool_yolo2(float Input[Tn][IB_HxW],float Output[Tm][TrxTc],
-		  const int Ksize,const int Kstride, const int TM_MIN,const int TR_MIN,const int TC_MIN, bool enable)
+		  const int Ksize,const int Kstride, uint16_t TCol_MIN, const int TM_MIN,const int TR_MIN,const int TC_MIN, bool enable)
 {
 	if(!enable)
 		return;
 
-	uint16_t TCol_MIN_l = (TC_MIN-1)*Kstride + Ksize;
+	// uint16_t TCol_MIN_l = (TC_MIN-1)*Kstride + Ksize;
 
 	float tmp[Tn];
 	for(uint16_t tr = 0;tr < TR_MIN;tr++)
@@ -574,7 +576,7 @@ void pool_yolo2(float Input[Tn][IB_HxW],float Output[Tm][TrxTc],
 	for(uint16_t i =0;i < Ksize; i++)
 	for(uint16_t j = 0;j < Ksize; j++)
 	{
-		uint32_t ifm_idx = (tr*Kstride+i)*TCol_MIN_l + tc*Kstride+j;
+		uint32_t ifm_idx = (tr*Kstride+i)*TCol_MIN + tc*Kstride+j;
 		for(uint16_t of = 0; of < Tn; of++)
 		{
 			if(i==0&&j==0)
@@ -618,6 +620,8 @@ void load_compute_wrapper(float *ifm, float *weight, float ofm_buffer[Tm][TrxTc]
 	int	TR_MIN = MIN(TR,ofm_h-tr_r);
 	int	TC_MIN = MIN(TC,ofm_w-tc_r);
 	int	TM_MIN = MIN(TM,ofm_num-tm_r);
+	uint16_t TCol_MIN = (TC_MIN-1)*kstride + ksize;
+	static uint16_t TCol_MIN0[1], TCol_MIN1[1];
 
 	if(lmode==0){
 		if(pp){
@@ -625,14 +629,15 @@ void load_compute_wrapper(float *ifm, float *weight, float ofm_buffer[Tm][TrxTc]
 			{
 				copy_input_weight(ifm,weight,ifm_num,ifm_w,ifm_h,ksize,kstride,tr_r,tc_r,tm_r, 0,
 					TM_MIN,TN,TR_MIN,TC_MIN, pad_int,ifm_buffer0,weight_buffer0,1,IHW,KK,INumxKK,ltype,in_flag);
-				conv2d_tile(ifm_buffer1, ofm_buffer, weight_buffer1, 0, ksize, kstride, TX_MIN_n[1][0], TX_MIN_n[1][1], TX_MIN_n[1][2], proc_flag);
+				conv2d_tile(ifm_buffer1, ofm_buffer, weight_buffer1, 0, ksize, kstride, TCol_MIN1[0], TX_MIN_n[1][0], TX_MIN_n[1][1], TX_MIN_n[1][2], proc_flag);
 			}else if(ltype == 1)
 			{
 				copy_input_weight(ifm,weight,ifm_num,ifm_w,ifm_h,ksize,kstride,tr_r,tc_r,tm_r,tm_r,
 					TM_MIN,TM,TR_MIN,TC_MIN,0,ifm_buffer0,weight_buffer0,0,IHW,KK,INumxKK,ltype,in_flag);
-				pool_yolo2(ifm_buffer1, ofm_buffer, ksize, kstride, TX_MIN_n[1][0], TX_MIN_n[1][1], TX_MIN_n[1][2], proc_flag);
+				pool_yolo2(ifm_buffer1, ofm_buffer, ksize, kstride, TCol_MIN1[0], TX_MIN_n[1][0], TX_MIN_n[1][1], TX_MIN_n[1][2], proc_flag);
 			}							
 
+			TCol_MIN0[0] = TCol_MIN;
 			tx_n[0][0] = tm_r; tx_n[0][1] = tr_r; tx_n[0][2] = tc_r; 
 			TX_MIN_n[0][0] = TM_MIN; TX_MIN_n[0][1] = TR_MIN; TX_MIN_n[0][2] = TC_MIN;
 
@@ -643,14 +648,15 @@ void load_compute_wrapper(float *ifm, float *weight, float ofm_buffer[Tm][TrxTc]
 			{
 				copy_input_weight(ifm,weight,ifm_num,ifm_w,ifm_h,ksize,kstride,tr_r,tc_r,tm_r, 0,
 					TM_MIN,TN,TR_MIN,TC_MIN, pad_int,ifm_buffer1,weight_buffer1,1,IHW,KK,INumxKK,ltype,in_flag);					
-				conv2d_tile(ifm_buffer0, ofm_buffer, weight_buffer0, 0, ksize, kstride, TX_MIN_n[0][0], TX_MIN_n[0][1], TX_MIN_n[0][2], proc_flag);
+				conv2d_tile(ifm_buffer0, ofm_buffer, weight_buffer0, 0, ksize, kstride, TCol_MIN0[0], TX_MIN_n[0][0], TX_MIN_n[0][1], TX_MIN_n[0][2], proc_flag);
 			}else if(ltype == 1)
 			{
 				copy_input_weight(ifm,weight,ifm_num,ifm_w,ifm_h,ksize,kstride,tr_r,tc_r,tm_r,tm_r,
 					TM_MIN,TM,TR_MIN,TC_MIN, 0,ifm_buffer1,weight_buffer1,0,IHW,KK,INumxKK,ltype,in_flag);						
-				pool_yolo2(ifm_buffer0, ofm_buffer, ksize, kstride, TX_MIN_n[0][0], TX_MIN_n[0][1], TX_MIN_n[0][2], proc_flag);		
+				pool_yolo2(ifm_buffer0, ofm_buffer, ksize, kstride, TCol_MIN0[0], TX_MIN_n[0][0], TX_MIN_n[0][1], TX_MIN_n[0][2], proc_flag);		
 			}				
 
+			TCol_MIN1[0] = TCol_MIN;
 			tx_n[1][0] = tm_r; tx_n[1][1] = tr_r; tx_n[1][2] = tc_r; 
 			TX_MIN_n[1][0] = TM_MIN; TX_MIN_n[1][1] = TR_MIN; TX_MIN_n[1][2] = TC_MIN;	
 
@@ -671,8 +677,10 @@ void load_compute_wrapper(float *ifm, float *weight, float ofm_buffer[Tm][TrxTc]
 					if(pp_tn){
 						copy_input_weight(ifm,weight,ifm_num,ifm_w,ifm_h,ksize,kstride,tr_r,tc_r,tm_r, tn_r,
 							TM_MIN,TN,TR_MIN,TC_MIN, pad_int,ifm_buffer0,weight_buffer0,1,IHW,KK,INumxKK,ltype,in_flag);
-						conv2d_tile(ifm_buffer1, ofm_buffer, weight_buffer1, tn_n[1], ksize, kstride, TX_MIN_n[1][0], TX_MIN_n[1][1], TX_MIN_n[1][2], proc_flag);
+						conv2d_tile(ifm_buffer1, ofm_buffer, weight_buffer1, tn_n[1], ksize, kstride, TCol_MIN1[0],
+										 TX_MIN_n[1][0], TX_MIN_n[1][1], TX_MIN_n[1][2], proc_flag);
 
+						TCol_MIN0[0] = TCol_MIN;
 						tn_n[0] = tn_r;
 						tx_n[0][0] = tm_r; tx_n[0][1] = tr_r; tx_n[0][2] = tc_r;
 						TX_MIN_n[0][0] = TM_MIN; TX_MIN_n[0][1] = TR_MIN; TX_MIN_n[0][2] = TC_MIN;
@@ -682,8 +690,10 @@ void load_compute_wrapper(float *ifm, float *weight, float ofm_buffer[Tm][TrxTc]
 					}else{
 						copy_input_weight(ifm,weight,ifm_num,ifm_w,ifm_h,ksize,kstride,tr_r,tc_r,tm_r, tn_r,
 							TM_MIN,TN,TR_MIN,TC_MIN, pad_int,ifm_buffer1,weight_buffer1,1,IHW,KK,INumxKK,ltype,in_flag);						
-						conv2d_tile(ifm_buffer0, ofm_buffer, weight_buffer0, tn_n[0], ksize, kstride, TX_MIN_n[0][0], TX_MIN_n[0][1], TX_MIN_n[0][2], proc_flag);
+						conv2d_tile(ifm_buffer0, ofm_buffer, weight_buffer0, tn_n[0], ksize, kstride, TCol_MIN0[0],
+										TX_MIN_n[0][0], TX_MIN_n[0][1], TX_MIN_n[0][2], proc_flag);
 
+						TCol_MIN1[0] = TCol_MIN;
 						tn_n[1] = tn_r;
 						tx_n[1][0] = tm_r; tx_n[1][1] = tr_r; tx_n[1][2] = tc_r;
 						TX_MIN_n[1][0] = TM_MIN; TX_MIN_n[1][1] = TR_MIN; TX_MIN_n[1][2] = TC_MIN;
@@ -944,6 +954,7 @@ void yolov2_hls_ps(network *net, float *input)
 				TR = MIN(((IB_HxW/TCol-l.size)/l.stride+1),output_h);//keep Kernel_stride>=1
 				TR = MIN(TR, TrxTc/TC);
 				TRow = (TR-1)*l.stride + l.size;
+
 				// assert(((TR*TC)>0)&&((TR*TC)<=TrxTc));
 				// assert(((TRow*TCol)>0)&&((TRow*TCol)<=IB_HxW));
 				// printf("TR=%d, TC=%d, TRow=%d, TCol=%d\n", TR, TC, TRow, TCol);
@@ -992,6 +1003,7 @@ void yolov2_hls_ps(network *net, float *input)
 				TR = MIN(((IB_HxW/TCol-l.size)/l.stride+1),output_h);//keep Kernel_stride>=1
 				TR = MIN(TR, TrxTc/TC);
 				TRow = (TR-1)*l.stride + l.size;
+				
 				// assert(((TR*TC)>0)&&((TR*TC)<=TrxTc));
 				// assert(((TRow*TCol)>0)&&((TRow*TCol)<=IB_HxW));
 				// printf("TR=%d, TC=%d, TRow=%d, TCol=%d\n", TR, TC, TRow, TCol);
