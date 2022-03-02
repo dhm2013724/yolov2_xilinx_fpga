@@ -37,57 +37,63 @@ const uint32_t TnxIB_HxIB_W = Tn*IB_H*IB_W;
 const uint32_t TrxTc = Tr*Tc;
 
 void input_load(float *input,float input_buffer[Tn][IB_HxW], uint16_t r, uint16_t c, uint16_t n, uint8_t Kstride, uint8_t ksize, 
-		 uint8_t Padding, uint16_t TR_MIN, uint16_t TC_MIN,
-		 uint16_t Input_w, uint16_t Input_h, uint8_t TN_MIN, uint32_t IHxIW, float pad_val, bool IsPad0ExtraFM)
+		 uint8_t Padding, uint16_t TR_MIN, uint16_t TC_MIN, uint16_t Input_w, uint16_t Input_h, uint8_t TN_MIN, uint32_t IHxIW, float pad_val, 
+		 bool r_init_en, bool c_init_en, uint16_t TCol_MIN_r)
 {
-	const int16_t Coffset = c*Kstride - Padding;
-	const int16_t Roffset = r*Kstride - Padding;
+	static uint16_t tl_x, br_x, px_l, px_r, TCol_MIN;
+	static uint16_t tl_y, br_y, px_b, px_t, TRow_MIN;
+	static int16_t Coffset, Roffset;
+	static uint16_t px_lr, col_len, px_tb, row_len;
+	static bool IsColCont, IsRowCont;
 
-	uint16_t TRow_MIN = (TR_MIN-1)*Kstride + ksize;
-	uint16_t TCol_MIN = (TC_MIN-1)*Kstride + ksize;
+	if(c_init_en){
+		Coffset = c*Kstride - Padding;
+		// TCol_MIN = (TC_MIN-1)*Kstride + ksize;
+		TCol_MIN = TCol_MIN_r;
 
-	uint16_t tl_y, tl_x, br_y, br_x;
-	uint16_t px_l, px_r, px_b, px_t;
-	if(Coffset < 0){
-		tl_x = 0;
-		px_l = -Coffset;
+		if(Coffset < 0){
+			tl_x = 0;
+			px_l = -Coffset;
+		}
+		else{
+			tl_x = Coffset;
+			px_l = 0;
+		}
+
+		br_x = Coffset + TCol_MIN_r -1;
+		if(br_x < Input_w){
+			px_r = 0;
+		}else{
+			px_r = br_x - Input_w + 1;		
+		}
+		px_lr = (px_l + px_r);
+		col_len = TCol_MIN_r - px_lr;	
+		IsColCont = (col_len == Input_w);
 	}
-	else{
-		tl_x = Coffset;
-		px_l = 0;
+	
+	if(r_init_en){
+		Roffset = r*Kstride - Padding;
+		TRow_MIN = (TR_MIN-1)*Kstride + ksize;
+
+		if(Roffset < 0){
+			tl_y = 0;
+			px_t = -Roffset;
+		}
+		else{
+			tl_y = Roffset;
+			px_t = 0;
+		}
+		br_y = Roffset + TRow_MIN -1;
+		if(br_y < Input_h){
+			px_b = 0;
+		}else{
+			px_b = br_y - Input_h + 1;		
+		}
+		px_tb = (px_t + px_b);	
+		row_len = TRow_MIN - px_tb;
+		IsRowCont = (row_len == Input_h);
 	}
 
-	br_x = Coffset + TCol_MIN -1;
-	if(br_x < Input_w){
-		px_r = 0;
-	}else{
-		px_r = br_x - Input_w + 1;		
-	}
-
-	if(Roffset < 0){
-		tl_y = 0;
-		px_t = -Roffset;
-	}
-	else{
-		tl_y = Roffset;
-		px_t = 0;
-	}
-	br_y = Roffset + TRow_MIN -1;
-	if(br_y < Input_h){
-		px_b = 0;
-	}else{
-		px_b = br_y - Input_h + 1;		
-	}
-
-	uint16_t px_tb = (px_t + px_b);
-	uint16_t px_lr = (px_l + px_r);
-	uint16_t col_len = TCol_MIN - px_lr;	
-	uint16_t row_len = TRow_MIN - px_tb;
-	uint16_t col_max = col_len + px_l;
-	uint16_t row_max = row_len + px_t;
-
-	bool IsColCont = (col_len == Input_w);
-	bool IsRowCont = (row_len == Input_h);
 	bool IsAllCont = IsRowCont && IsColCont;
 
 	uint32_t burstlen;
@@ -110,44 +116,44 @@ void input_load(float *input,float input_buffer[Tn][IB_HxW], uint16_t r, uint16_
 		T2_MIN = row_len;		
 	}
 
-        uint16_t t1, t2, t3;
-        t1 = 0; t2 = 0; t3 = 0;
-        for( uint16_t t1m = 0;t1m < T1_MIN; t1m++){
+	uint16_t t1, t2, t3;
+	t1 = 0; t2 = 0; t3 = 0;
+	for( uint16_t t1m = 0;t1m < T1_MIN; t1m++){
 DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=Tn)
-        for( uint16_t t2m = 0;t2m < T2_MIN; t2m++){
+	for( uint16_t t2m = 0;t2m < T2_MIN; t2m++){
 DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=IB_H)
-                uint32_t offset_ex = offset_base;
-                t3 = 0;
-                if(IsAllCont){
-                        t1 = 0; t2 = 0;
-                }else if(IsColCont){
-                        t1 = t1m; t2 = 0;
-                        offset_ex += (t1m*IHxIW);
-                }else{
-                        t1 = t1m; t2 = t2m;
-                        offset_ex += ( t1m*IHxIW + t2m*Input_w);
-                }
+			uint32_t offset_ex = offset_base;
+			t3 = 0;
+			if(IsAllCont){
+					t1 = 0; t2 = 0;
+			}else if(IsColCont){
+					t1 = t1m; t2 = 0;
+					offset_ex += (t1m*IHxIW);
+			}else{
+					t1 = t1m; t2 = t2m;
+					offset_ex += ( t1m*IHxIW + t2m*Input_w);
+			}
 
-                float *ifm_addr = input + offset_ex;
-                for(uint32_t tbl=0; tbl<burstlen; tbl++){
+			float *ifm_addr = input + offset_ex;
+			for(uint32_t tbl=0; tbl<burstlen; tbl++){
 DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=TnxIB_HxIB_W)
 #pragma HLS PIPELINE II=1
-					uint32_t ifm_idx = (t2+px_t)*TCol_MIN + t3+px_l;
-					input_buffer[t1][ifm_idx] = ifm_addr[tbl];
+				uint32_t ifm_idx = (t2+px_t)*TCol_MIN + t3+px_l;
+				input_buffer[t1][ifm_idx] = ifm_addr[tbl];
 
-					t3++;
-					// if(IsColCont)
-					if(t3==col_len){
-						t3 = 0;
-						t2++;
-						// if(IsAllCont)
-						if(t2==row_len){
-								t2 = 0;
-								t1++;
-					}}
-                }
+				t3++;
+				// if(IsColCont)
+				if(t3==col_len){
+					t3 = 0;
+					t2++;
+					// if(IsAllCont)
+					if(t2==row_len){
+							t2 = 0;
+							t1++;
+				}}
+			}
 
-        }}
+	}}
 
 	if(px_lr){
 		for(uint16_t t2 = 0;t2 < row_len; t2++){
@@ -190,21 +196,22 @@ DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=IB_W)
 			}
 		}}		
 	}	
-	
-	uint8_t TN_left = Tn - TN_MIN;
-	if(IsPad0ExtraFM&&TN_left){			
-		for(uint16_t t2 = 0;t2 < TRow_MIN; t2++){
-DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=IB_H)
-		for(uint16_t t3 = 0;t3 < TCol_MIN; t3++){
-DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=IB_W)
-#pragma HLS PIPELINE II=1
-			uint32_t ifm_idx = t2*TCol_MIN + t3;
-			for(uint16_t t1 = 0;t1 < Tn; t1++){
-				if(t1>=TN_MIN)
-					input_buffer[t1][ifm_idx] = 0;
-			}
-		}}		
-	}
+
+//because we have set un-used kernel weight to be 0, we dont need to set 0 here.	
+// 	uint8_t TN_left = Tn - TN_MIN;
+// 	if(IsPad0ExtraFM&&TN_left){			
+// 		for(uint16_t t2 = 0;t2 < TRow_MIN; t2++){
+// DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=IB_H)
+// 		for(uint16_t t3 = 0;t3 < TCol_MIN; t3++){
+// DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=IB_W)
+// #pragma HLS PIPELINE II=1
+// 			uint32_t ifm_idx = t2*TCol_MIN + t3;
+// 			for(uint16_t t1 = 0;t1 < Tn; t1++){
+// 				if(t1>=TN_MIN)
+// 					input_buffer[t1][ifm_idx] = 0;
+// 			}
+// 		}}		
+// 	}
 
 }
 
@@ -264,7 +271,8 @@ DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=TmxTnxKxK)
 
 }
 
-void copy_input_weight(float *input,float *Weight,int IFM_num,int Input_w, int Input_h, int Ksize,int Kstride,int r,int c,int m,int n,
+void copy_input_weight(float *input,float *Weight,int IFM_num,int Input_w, int Input_h, bool r_init_en, bool c_init_en, uint16_t TCol_MIN_r, 
+		int Ksize,int Kstride,int r,int c,int m,int n,
 		int TM_MIN,int TN,int TR_MIN,int TC_MIN, int Padding,float input_buffer[Tn][IB_HxW],float weight_buffer[Tm][Tn][K][K],
 		bool weight_load_enable,const int IHxIW,const int KxK,const int IFM_numxKxK,const int LayerType, bool enable)
 {
@@ -278,7 +286,7 @@ void copy_input_weight(float *input,float *Weight,int IFM_num,int Input_w, int I
 		pad_val = -1024*1024;
 
 	// input_load(input, input_buffer, r, c, n, Kstride, Padding, TRow, TCol, Input_w, Input_h, TN_MIN, IHxIW, LayerType);
-	input_load(input, input_buffer, r, c, n, Kstride, Ksize, Padding, TR_MIN, TC_MIN, Input_w, Input_h, TN_MIN, IHxIW, pad_val, IsPad0ExtraFM);
+	input_load(input, input_buffer, r, c, n, Kstride, Ksize, Padding, TR_MIN, TC_MIN, Input_w, Input_h, TN_MIN, IHxIW, pad_val, r_init_en, c_init_en, TCol_MIN_r);
 	weight_load_reorg(Weight,weight_buffer,weight_load_enable,m,n,IFM_numxKxK,KxK,Ksize,TM_MIN,TN_MIN);
 }
 
@@ -348,7 +356,7 @@ float postproc(float ofm_in, float bias_in, bool IsBias, bool IsNL){
 	else
 		tmp0 = tmp;
 
-	if(IsNL&&(tmp0<0.0f))
+	if(IsNL&&(tmp0 < 0))
 	{
 		tmp_out = tmp0*0.1f;
 	}
@@ -361,10 +369,39 @@ float postproc(float ofm_in, float bias_in, bool IsBias, bool IsNL){
 const uint32_t OFM_BLmax = Tm*Tr*Tc;
 const uint32_t T12MINmax = Tm*Tr;
 
+void aff_maxpool_2x2s2(float ofm_buf[Tm][TrxTc], uint16_t TCol_MIN, uint16_t TR_MIN, uint16_t TC_MIN, bool enable)
+{
+	if(!enable)
+		return;
+
+	assert(TR_MIN>0);
+	assert(TC_MIN>0);
+
+	float tmp[Tm];
+	for(uint16_t tr = 0;tr < TR_MIN;tr++)
+	for(uint16_t tc = 0;tc < TC_MIN;tc++)
+	for(uint16_t i = 0;i < 2; i++)
+	for(uint16_t j = 0;j < 2; j++)
+	{
+		uint32_t ifm_idx = (tr*2+i)*TCol_MIN + (tc*2+j);
+		for(uint16_t of = 0; of < Tm; of++)
+		{
+			float tmp_in = ofm_buf[of][ifm_idx];
+			if(i==0&&j==0)
+				tmp[of] = tmp_in;			 
+			else if(tmp_in > tmp[of])
+				tmp[of] = tmp_in;
+
+			if(i==1&&j==1)
+				ofm_buf[of][tr*TC_MIN + tc] = tmp[of];
+		}
+	}
+}
+
 void write_back_output_reorg(float output_buffer[Tm][TrxTc], float bias_buffer[MAX_BETA_LENGTH], /*float bias_buffer[MAX_BETA_LENGTH],*/
-		float *Output, uint16_t r,uint16_t c,uint16_t m, 
-		uint16_t ofm_num, uint16_t ofm_h, uint16_t ofm_w,
-		uint8_t TM_MIN, uint16_t TR_MIN, uint16_t TC_MIN, uint32_t OHxOW, bool IsNL, bool IsBias, bool enable)
+		float *Output, uint16_t r_r,uint16_t c_r,uint16_t m, 
+		uint16_t ofm_num, uint16_t ofm_h_r, uint16_t ofm_w_r,
+		uint8_t TM_MIN, uint16_t TR_MIN_r, uint16_t TC_MIN_r, uint32_t OHxOW_r, bool IsNL, bool IsBias, bool enable, bool IsPoolAff)
 {
 	if(!enable)
 		return;
@@ -372,6 +409,33 @@ void write_back_output_reorg(float output_buffer[Tm][TrxTc], float bias_buffer[M
 	assert((TM_MIN >0)&&(TM_MIN <=Tm));
 	// assert((TR_MIN >0)&&(TR_MIN <=Tr));
 	// assert((TC_MIN >0)&&(TC_MIN <=Tc));
+	uint16_t r, c, TR_MIN, TC_MIN;
+	uint32_t OHxOW;
+	uint16_t ofm_h, ofm_w;
+
+	uint16_t tr,tm,tc;
+
+	if(IsPoolAff){
+		assert(TR_MIN%2==0);
+		assert(TC_MIN%2==0);		
+		r = r_r/2; c = c_r/2; TR_MIN = TR_MIN_r/2; TC_MIN = TC_MIN_r/2;
+		ofm_h = ofm_h_r/2; ofm_w = ofm_w_r/2;
+		OHxOW = OHxOW_r/4;
+	}else
+	{
+		r = r_r; c = c_r; TR_MIN = TR_MIN_r; TC_MIN = TC_MIN_r;
+		ofm_h = ofm_h_r; ofm_w = ofm_w_r;
+		OHxOW = OHxOW_r;	
+	}
+
+	// for( tm=0; tm <   TM_MIN; tm++)
+	// for( tr=0; tr < TR_MIN_r; tr++)
+	// for( tc=0; tc < TC_MIN_r; tc++)
+	// {
+	// 	output_buffer[tm][tr*TC_MIN_r + tc] = postproc(output_buffer[tm][tr*TC_MIN_r + tc], bias_buffer[m+tm], IsBias, IsNL);
+	// }	
+
+	aff_maxpool_2x2s2(output_buffer, TC_MIN_r, TR_MIN, TC_MIN, IsPoolAff);	
 
 	uint32_t offset = m*OHxOW + r*ofm_w + c;
 
@@ -397,7 +461,6 @@ void write_back_output_reorg(float output_buffer[Tm][TrxTc], float bias_buffer[M
 
 	uint32_t Tcomb_TC = T1_MIN*T2_MIN;
 
-	uint16_t tr,tm,tc;
 	uint16_t t1, t2;
 
 	t1 = 0; t2 = 0;
@@ -430,6 +493,7 @@ DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=T12MINmax)
 DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=OFM_BLmax)
 #pragma HLS PIPELINE II=1		
 			float tmp_out = postproc(output_buffer[tm][tr*TC_MIN + tc], bias_buffer[m+tm], IsBias, IsNL);
+			// float tmp_out = output_buffer[tm][tr*TC_MIN + tc];
 
 			tc++;
 			if(tc==TC_MIN){
@@ -594,7 +658,8 @@ void pool_yolo2(float Input[Tn][IB_HxW],float Output[Tm][TrxTc],
 
 void load_compute_wrapper(float *ifm, float *weight, float ofm_buffer[Tm][TrxTc], int ksize, int kstride, int ifm_num, int ifm_w, int ifm_h,int ofm_num,
 	 int ofm_h, int ofm_w, int pad_int, int ltype, int IHW, int KK, int INumxKK, int TM, int TN, int TR, int TC, int tm_r, int tr_r, int tc_r,
-	 int tx_n1[3],int TX_MIN_n1[3],bool pp,bool in_flag,bool proc_flag, bool LoadBias, int NTif, uint8_t lmode, bool enable)
+	 int tx_n1[3],int TX_MIN_n1[3],bool pp,bool in_flag,bool proc_flag, bool LoadBias, int NTif, uint8_t lmode, bool enable,
+	 bool r_init_en, bool c_init_en)
 {
 	static float ifm_buffer0[Tn][IB_HxW];
 #pragma HLS ARRAY_PARTITION variable=ifm_buffer0 complete dim=1
@@ -617,22 +682,35 @@ void load_compute_wrapper(float *ifm, float *weight, float ofm_buffer[Tm][TrxTc]
 	if(!enable)
 		return ;
 
-	int	TR_MIN = MIN(TR,ofm_h-tr_r);
-	int	TC_MIN = MIN(TC,ofm_w-tc_r);
-	int	TM_MIN = MIN(TM,ofm_num-tm_r);
-	uint16_t TCol_MIN = (TC_MIN-1)*kstride + ksize;
+	// int	TR_MIN = MIN(TR,ofm_h-tr_r);
+	// int	TC_MIN = MIN(TC,ofm_w-tc_r);
+	// int	TM_MIN = MIN(TM,ofm_num-tm_r);
+	// uint16_t TCol_MIN = (TC_MIN-1)*kstride + ksize;
+	// static uint16_t TCol_MIN0[1], TCol_MIN1[1];
+
+	static uint16_t TR_MIN, TC_MIN, TM_MIN;
+	static uint16_t TCol_MIN;
 	static uint16_t TCol_MIN0[1], TCol_MIN1[1];
+
+	if(c_init_en){
+		TC_MIN = MIN(TC,ofm_w-tc_r);
+		TCol_MIN = (TC_MIN-1)*kstride + ksize;
+	}
+	if(r_init_en){
+		TR_MIN = MIN(TR,ofm_h-tr_r);
+	}
+	TM_MIN = MIN(TM,ofm_num-tm_r);
 
 	if(lmode==0){
 		if(pp){
 			if(ltype == 0)
 			{
-				copy_input_weight(ifm,weight,ifm_num,ifm_w,ifm_h,ksize,kstride,tr_r,tc_r,tm_r, 0,
+				copy_input_weight(ifm,weight,ifm_num,ifm_w,ifm_h, r_init_en, c_init_en, TCol_MIN, ksize,kstride,tr_r,tc_r,tm_r, 0,
 					TM_MIN,TN,TR_MIN,TC_MIN, pad_int,ifm_buffer0,weight_buffer0,1,IHW,KK,INumxKK,ltype,in_flag);
 				conv2d_tile(ifm_buffer1, ofm_buffer, weight_buffer1, 0, ksize, kstride, TCol_MIN1[0], TX_MIN_n[1][0], TX_MIN_n[1][1], TX_MIN_n[1][2], proc_flag);
 			}else if(ltype == 1)
 			{
-				copy_input_weight(ifm,weight,ifm_num,ifm_w,ifm_h,ksize,kstride,tr_r,tc_r,tm_r,tm_r,
+				copy_input_weight(ifm,weight,ifm_num,ifm_w,ifm_h, r_init_en, c_init_en, TCol_MIN, ksize,kstride,tr_r,tc_r,tm_r,tm_r,
 					TM_MIN,TM,TR_MIN,TC_MIN,0,ifm_buffer0,weight_buffer0,0,IHW,KK,INumxKK,ltype,in_flag);
 				pool_yolo2(ifm_buffer1, ofm_buffer, ksize, kstride, TCol_MIN1[0], TX_MIN_n[1][0], TX_MIN_n[1][1], TX_MIN_n[1][2], proc_flag);
 			}							
@@ -646,12 +724,12 @@ void load_compute_wrapper(float *ifm, float *weight, float ofm_buffer[Tm][TrxTc]
 		}else{
 			if(ltype == 0)
 			{
-				copy_input_weight(ifm,weight,ifm_num,ifm_w,ifm_h,ksize,kstride,tr_r,tc_r,tm_r, 0,
+				copy_input_weight(ifm,weight,ifm_num,ifm_w,ifm_h, r_init_en, c_init_en, TCol_MIN, ksize,kstride,tr_r,tc_r,tm_r, 0,
 					TM_MIN,TN,TR_MIN,TC_MIN, pad_int,ifm_buffer1,weight_buffer1,1,IHW,KK,INumxKK,ltype,in_flag);					
 				conv2d_tile(ifm_buffer0, ofm_buffer, weight_buffer0, 0, ksize, kstride, TCol_MIN0[0], TX_MIN_n[0][0], TX_MIN_n[0][1], TX_MIN_n[0][2], proc_flag);
 			}else if(ltype == 1)
 			{
-				copy_input_weight(ifm,weight,ifm_num,ifm_w,ifm_h,ksize,kstride,tr_r,tc_r,tm_r,tm_r,
+				copy_input_weight(ifm,weight,ifm_num,ifm_w,ifm_h, r_init_en, c_init_en, TCol_MIN, ksize,kstride,tr_r,tc_r,tm_r,tm_r,
 					TM_MIN,TM,TR_MIN,TC_MIN, 0,ifm_buffer1,weight_buffer1,0,IHW,KK,INumxKK,ltype,in_flag);						
 				pool_yolo2(ifm_buffer0, ofm_buffer, ksize, kstride, TCol_MIN0[0], TX_MIN_n[0][0], TX_MIN_n[0][1], TX_MIN_n[0][2], proc_flag);		
 			}				
@@ -675,7 +753,7 @@ void load_compute_wrapper(float *ifm, float *weight, float ofm_buffer[Tm][TrxTc]
 					bool proc_flag = tn > 0;						
 					// uint16_t tn_r = tn*TN;
 					if(pp_tn){
-						copy_input_weight(ifm,weight,ifm_num,ifm_w,ifm_h,ksize,kstride,tr_r,tc_r,tm_r, tn_r,
+						copy_input_weight(ifm,weight,ifm_num,ifm_w,ifm_h, r_init_en, c_init_en, TCol_MIN, ksize,kstride,tr_r,tc_r,tm_r, tn_r,
 							TM_MIN,TN,TR_MIN,TC_MIN, pad_int,ifm_buffer0,weight_buffer0,1,IHW,KK,INumxKK,ltype,in_flag);
 						conv2d_tile(ifm_buffer1, ofm_buffer, weight_buffer1, tn_n[1], ksize, kstride, TCol_MIN1[0],
 										 TX_MIN_n[1][0], TX_MIN_n[1][1], TX_MIN_n[1][2], proc_flag);
@@ -688,7 +766,7 @@ void load_compute_wrapper(float *ifm, float *weight, float ofm_buffer[Tm][TrxTc]
 
 						pp_tn = 0;
 					}else{
-						copy_input_weight(ifm,weight,ifm_num,ifm_w,ifm_h,ksize,kstride,tr_r,tc_r,tm_r, tn_r,
+						copy_input_weight(ifm,weight,ifm_num,ifm_w,ifm_h, r_init_en, c_init_en, TCol_MIN, ksize,kstride,tr_r,tc_r,tm_r, tn_r,
 							TM_MIN,TN,TR_MIN,TC_MIN, pad_int,ifm_buffer1,weight_buffer1,1,IHW,KK,INumxKK,ltype,in_flag);						
 						conv2d_tile(ifm_buffer0, ofm_buffer, weight_buffer0, tn_n[0], ksize, kstride, TCol_MIN0[0],
 										TX_MIN_n[0][0], TX_MIN_n[0][1], TX_MIN_n[0][2], proc_flag);
@@ -717,7 +795,7 @@ void load_compute_wrapper(float *ifm, float *weight, float ofm_buffer[Tm][TrxTc]
 void YOLO2_FPGA(float *Input,float *Output,float *Weight,float *Beta, int IFM_num, int OFM_num,
 							   int Ksize, int Kstride, int Input_w, int Input_h, int Output_w, int Output_h, int Padding, bool IsNL,
 							   int TM, int TN, int TR, int TC,
-							   int32_t NToy, int32_t NTox, int32_t NTof, int32_t NTcomb, int32_t NTif, uint8_t lmode, int32_t NTcomb_l, int LayerType)
+							   int32_t NToy, int32_t NTox, int32_t NTof, int32_t NTcomb, int32_t NTif, uint8_t lmode, int32_t NTcomb_l, int LayerType, bool IsPoolAff)
 {
 	assert((OFM_num > 0)&&(OFM_num <= 2048));
 	assert((IFM_num > 0)&&(IFM_num <= 2048));
@@ -768,6 +846,7 @@ void YOLO2_FPGA(float *Input,float *Output,float *Weight,float *Beta, int IFM_nu
 	tr = 0; tc = 0; tm = 0;
 	tm_r = 0; tr_r = 0; tc_r = 0;
 	bool pp = 1;
+	bool r_init_en = 1, c_init_en = 1;
 	for(int ntc = 0; ntc < NTcomb_l; ntc++){
 		if(lmode==0){
 			in_flag = ntc < NTcomb;
@@ -784,35 +863,36 @@ void YOLO2_FPGA(float *Input,float *Output,float *Weight,float *Beta, int IFM_nu
 		if(pp){
 			load_compute_wrapper(Input, Weight, ofm_buffer0, Ksize, Kstride, IFM_num, Input_w, Input_h, OFM_num, Output_h, Output_w,
 				Padding, LayerType, IHxIW, KxK, IFM_numxKxK, TM, TN, TR, TC, tm_r, tr_r, tc_r,
-				tx_n10, TX_MIN_n10, pp, in_flag, proc_flag, IsBias, NTif, lmode, lc_enable);
+				tx_n10, TX_MIN_n10, pp, in_flag, proc_flag, IsBias, NTif, lmode, lc_enable, r_init_en, c_init_en);
 
-			write_back_output_reorg( ofm_buffer1, bias_buffer, Output, tx_n11[1], tx_n11[2], tx_n11[0], OFM_num, Output_h, Output_w, TX_MIN_n11[0], TX_MIN_n11[1], TX_MIN_n11[2], OHxOW, IsNL, IsBias, out_flag);
+			write_back_output_reorg( ofm_buffer1, bias_buffer, Output, tx_n11[1], tx_n11[2], tx_n11[0], OFM_num, Output_h, Output_w, TX_MIN_n11[0], TX_MIN_n11[1], TX_MIN_n11[2], OHxOW, IsNL, IsBias, out_flag, IsPoolAff);
 			pp = 0;
 		}else{
 			load_compute_wrapper(Input, Weight, ofm_buffer1, Ksize, Kstride, IFM_num, Input_w, Input_h, OFM_num, Output_h, Output_w,
 				Padding, LayerType, IHxIW, KxK, IFM_numxKxK, TM, TN, TR, TC, tm_r, tr_r, tc_r,
-				tx_n11, TX_MIN_n11, pp, in_flag, proc_flag, IsBias, NTif, lmode, lc_enable);	
+				tx_n11, TX_MIN_n11, pp, in_flag, proc_flag, IsBias, NTif, lmode, lc_enable, r_init_en, c_init_en);	
 
-			write_back_output_reorg( ofm_buffer0, bias_buffer, Output, tx_n10[1], tx_n10[2], tx_n10[0], OFM_num, Output_h, Output_w, TX_MIN_n10[0], TX_MIN_n10[1], TX_MIN_n10[2], OHxOW, IsNL, IsBias, out_flag);
+			write_back_output_reorg( ofm_buffer0, bias_buffer, Output, tx_n10[1], tx_n10[2], tx_n10[0], OFM_num, Output_h, Output_w, TX_MIN_n10[0], TX_MIN_n10[1], TX_MIN_n10[2], OHxOW, IsNL, IsBias, out_flag, IsPoolAff);
 			pp = 1;
 		}
 
 		tm++;
 		tm_r += TM;
+		r_init_en = 0; c_init_en = 0;
 		if(tm==NTof)
 		{
 			tm=0; tc++;
-			tm_r = 0; tc_r += TC;
+			tm_r = 0; tc_r += TC; c_init_en = 1;//update col
 			if(tc==NTox)
 			{
 				tc=0; tr++;
-				tc_r = 0; tr_r += TR;
+				tc_r = 0; tr_r += TR; r_init_en = 1;//update row
 		}}		
 	}
 }
 
-#define MEM_LEN (416*416*32+208*208*32)
-void generate_iofm_offset(float* in_ptr[32], float* out_ptr[32], float *Memory_buf, network *net)
+// #define MEM_LEN (416*416*32+208*208*32)
+void generate_iofm_offset(float* in_ptr[32], float* out_ptr[32], float *Memory_buf, network *net, const int MEM_LEN)
 {
 #define ROUTE16_LEN (26*26*512)
 #define CONV27_LEN (13*13*256)
@@ -820,8 +900,44 @@ void generate_iofm_offset(float* in_ptr[32], float* out_ptr[32], float *Memory_b
 
 	float *Memory_top = Memory_buf;
 	float *Memory_bottom = Memory_top + MEM_LEN;
-	int x;
-	for(x=0;x<18;x++)
+	int x, out_w;
+
+	x = 0;
+	in_ptr[x] = Memory_top;
+	out_ptr[x] = Memory_bottom - net->layers[x+1].out_c *  net->layers[x+1].out_h * net->layers[x+1].out_w;//aff_max
+	x = 2;
+	in_ptr[x] = out_ptr[0];
+	out_ptr[x] = Memory_top;//aff_max
+
+	for(x=4;x<6;x++)
+	{
+		int out_w = net->layers[x].out_w;
+		if(x%2==0)
+		{
+			in_ptr[x] = Memory_top;
+			out_ptr[x] = Memory_bottom - net->layers[x].out_c *  net->layers[x].out_h * out_w;
+		}
+		else
+		{
+			in_ptr[x] = out_ptr[x-1];
+			out_ptr[x] = Memory_top;
+		}
+	}
+
+	x = 6;
+	in_ptr[x] = Memory_top;
+	out_ptr[x] = Memory_bottom - net->layers[x+1].out_c *  net->layers[x+1].out_h * net->layers[x+1].out_w;//aff_max
+	x = 8;
+	in_ptr[x] = out_ptr[6];
+	out_ptr[x] = Memory_top;
+	x = 9;
+	in_ptr[x] = Memory_top;
+	out_ptr[x] = Memory_bottom - net->layers[x].out_c *  net->layers[x].out_h * net->layers[x].out_w;
+	x = 10;
+	in_ptr[x] = out_ptr[9];
+	out_ptr[x] = Memory_top;//aff_max
+
+	for(x=12;x<18;x++)
 	{
 		int out_w = net->layers[x].out_w;
 		if(x%2==0)
@@ -864,6 +980,60 @@ void generate_iofm_offset(float* in_ptr[32], float* out_ptr[32], float *Memory_b
 
 	in_ptr[31] = out_ptr[30];
 }
+
+// // #define MEM_LEN (416*416*32+208*208*32)
+// void generate_iofm_offset(float* in_ptr[32], float* out_ptr[32], float *Memory_buf, network *net, const int MEM_LEN)
+// {
+// #define ROUTE16_LEN (26*26*512)
+// #define CONV27_LEN (13*13*256)
+// #define CONV24_LEN (13*13*1024)
+
+// 	float *Memory_top = Memory_buf;
+// 	float *Memory_bottom = Memory_top + MEM_LEN;
+// 	int x;
+// 	for(x=0;x<18;x++)
+// 	{
+// 		int out_w = net->layers[x].out_w;
+// 		if(x%2==0)
+// 		{
+// 			in_ptr[x] = Memory_top;
+// 			out_ptr[x] = Memory_bottom - net->layers[x].out_c *  net->layers[x].out_h * out_w;
+// 		}
+// 		else
+// 		{
+// 			in_ptr[x] = out_ptr[x-1];
+// 			out_ptr[x] = Memory_top;
+// 		}
+// 	}
+
+// 	for(x=18;x<25;x++)
+// 	{
+// 		int out_w = net->layers[x].out_w;
+// 		if(x%2==0)
+// 		{
+// 			in_ptr[x] = Memory_top;
+// 			out_ptr[x] = Memory_bottom - ROUTE16_LEN - net->layers[x].out_c *  net->layers[x].out_h * out_w;
+// 		}else
+// 		{
+// 			in_ptr[x] = out_ptr[x-1];
+// 			out_ptr[x] = Memory_top;
+// 		}
+// 	}
+
+// 	in_ptr[26] = Memory_bottom - ROUTE16_LEN;
+// 	out_ptr[26] = Memory_top;
+
+// 	in_ptr[27] = Memory_top;
+// 	out_ptr[27] = Memory_bottom - ROUTE16_LEN - CONV24_LEN - CONV27_LEN;
+
+// 	in_ptr[29] = out_ptr[27];
+// 	out_ptr[29] = Memory_top;
+
+// 	in_ptr[30] = Memory_top;
+// 	out_ptr[30] = Memory_bottom - net->layers[30].outputs;
+
+// 	in_ptr[31] = out_ptr[30];
+// }
 
 void reorg_cpu(float *x, int w, int h, int c, int stride, float *out)
 {
@@ -913,11 +1083,13 @@ void yolov2_hls_ps(network *net, float *input)
 	float *region_buf = (float *)calloc(13*13*425, sizeof(float));
 	float *tmp_ptr = NULL;
 
-//leave some memories for overflow, because the load_module will load extra pixels near boundary for padding
+	const int MEM_LEN = (104*104*64+208*208*32);
+	// const int MEM_LEN = (416*416*32+208*208*32);
 	float *Memory_buf = (float*)calloc(MEM_LEN,sizeof(float));
 	float* in_ptr[32];
 	float* out_ptr[32];
-	generate_iofm_offset( in_ptr, out_ptr, Memory_buf, net);
+	// generate_iofm_offset( in_ptr, out_ptr, Memory_buf, net);
+	generate_iofm_offset( in_ptr, out_ptr, Memory_buf, net, MEM_LEN);
 
 	memcpy(in_ptr[0], input, 416*416*3*sizeof(float));//416x416x3 input_pic
 
@@ -931,9 +1103,10 @@ void yolov2_hls_ps(network *net, float *input)
 	int NToy, NTox, NTof, NTcomb, NTif;
 	uint8_t lmode;
 	int NTcomb_l;
+	bool IsPoolAff;
 
     for(uint16_t i = 0; i < net->n; ++i)
-	{		
+	{
         layer l = net->layers[i];
 		printf("Layer[%2d]: ",i);
 		switch(l.type)
@@ -954,6 +1127,20 @@ void yolov2_hls_ps(network *net, float *input)
 				TR = MIN(((IB_HxW/TCol-l.size)/l.stride+1),output_h);//keep Kernel_stride>=1
 				TR = MIN(TR, TrxTc/TC);
 				TRow = (TR-1)*l.stride + l.size;
+
+				if((i == 0) || (i == 2) || (i == 6) || (i == 10))
+					IsPoolAff = 1;
+				else
+					IsPoolAff = 0;
+				// IsPoolAff = 0;
+
+				if(IsPoolAff){
+					if(TR & 0x1)
+						TR = TR -1;
+					assert((TC%2)==0);
+					assert(((TR%2)==0)&&(TR > 0));
+				}
+				printf("TR=%d, TC=%d, output_h=%d, output_w=%d\n", TR, TC, output_h, output_w);
 
 				// assert(((TR*TC)>0)&&((TR*TC)<=TrxTc));
 				// assert(((TRow*TCol)>0)&&((TRow*TCol)<=IB_HxW));
@@ -979,7 +1166,7 @@ void yolov2_hls_ps(network *net, float *input)
 				YOLO2_FPGA(in_ptr[i],out_ptr[i],Weight_buf+woffset,Beta_buf+boffset,
 					l.c,l.n,l.size,
 					l.stride,l.w,l.h,output_w, output_h, l.pad,l.activation==LEAKY?1:0,
-					TM,TN,TR,TC, NToy, NTox, NTof, NTcomb, NTif, lmode, NTcomb_l, 0);
+					TM,TN,TR,TC, NToy, NTox, NTof, NTcomb, NTif, lmode, NTcomb_l, 0, IsPoolAff);
 
 				woffset += weight_offset[offset_index];
 				boffset += beta_offset[offset_index];
@@ -990,6 +1177,11 @@ void yolov2_hls_ps(network *net, float *input)
 				printf("outputMemory:%8d;max          %d x %d / %d  %4d x%4d x%4d   ->  %4d x%4d x%4d\n",l.outputs, l.size, l.size, l.stride, l.w, l.h, l.c, l.out_w, l.out_h, l.out_c);
 				//output_w = (l.w - l.size)/l.stride + 1 ;
 				//output_h = (l.h - l.size)/l.stride + 1 ;
+
+				if((i == 1) || (i == 3) || (i == 7) || (i == 11))//skip affiliated layers
+					break;
+				printf("Here, only for [17]max\n");
+
 				output_w = l.out_h;
 				output_h = l.out_w;
 
@@ -1027,7 +1219,7 @@ void yolov2_hls_ps(network *net, float *input)
 
 				YOLO2_FPGA(in_ptr[i],out_ptr[i],NULL,NULL,l.c,l.c,
 					l.size,l.stride,l.w,l.h, output_w, output_h, l.pad,0,TM,0,TR,TC, 
-					NToy, NTox, NTof, NTcomb, NTif, lmode, NTcomb_l, 1);
+					NToy, NTox, NTof, NTcomb, NTif, lmode, NTcomb_l, 1, 0);
 
 				break;
 			case REORG:
