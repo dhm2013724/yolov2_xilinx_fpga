@@ -356,7 +356,7 @@ float postproc(float ofm_in, float bias_in, bool IsBias, bool IsNL){
 	else
 		tmp0 = tmp;
 
-	if(IsNL&&(tmp0 < 0))
+	if(IsNL&&(tmp0<0.0f))
 	{
 		tmp_out = tmp0*0.1f;
 	}
@@ -369,39 +369,10 @@ float postproc(float ofm_in, float bias_in, bool IsBias, bool IsNL){
 const uint32_t OFM_BLmax = Tm*Tr*Tc;
 const uint32_t T12MINmax = Tm*Tr;
 
-void aff_maxpool_2x2s2(float ofm_buf[Tm][TrxTc], uint16_t TCol_MIN, uint16_t TR_MIN, uint16_t TC_MIN, bool enable)
-{
-	if(!enable)
-		return;
-
-	assert(TR_MIN>0);
-	assert(TC_MIN>0);
-
-	float tmp[Tm];
-	for(uint16_t tr = 0;tr < TR_MIN;tr++)
-	for(uint16_t tc = 0;tc < TC_MIN;tc++)
-	for(uint16_t i = 0;i < 2; i++)
-	for(uint16_t j = 0;j < 2; j++)
-	{
-		uint32_t ifm_idx = (tr*2+i)*TCol_MIN + (tc*2+j);
-		for(uint16_t of = 0; of < Tm; of++)
-		{
-			float tmp_in = ofm_buf[of][ifm_idx];
-			if(i==0&&j==0)
-				tmp[of] = tmp_in;			 
-			else if(tmp_in > tmp[of])
-				tmp[of] = tmp_in;
-
-			if(i==1&&j==1)
-				ofm_buf[of][tr*TC_MIN + tc] = tmp[of];
-		}
-	}
-}
-
 void write_back_output_reorg(float output_buffer[Tm][TrxTc], float bias_buffer[MAX_BETA_LENGTH], /*float bias_buffer[MAX_BETA_LENGTH],*/
-		float *Output, uint16_t r_r,uint16_t c_r,uint16_t m, 
-		uint16_t ofm_num, uint16_t ofm_h_r, uint16_t ofm_w_r,
-		uint8_t TM_MIN, uint16_t TR_MIN_r, uint16_t TC_MIN_r, uint32_t OHxOW_r, bool IsNL, bool IsBias, bool enable, bool IsPoolAff)
+		float *Output, uint16_t r,uint16_t c,uint16_t m, 
+		uint16_t ofm_num, uint16_t ofm_h, uint16_t ofm_w,
+		uint8_t TM_MIN, uint16_t TR_MIN, uint16_t TC_MIN, uint32_t OHxOW, bool IsNL, bool IsBias, bool enable)
 {
 	if(!enable)
 		return;
@@ -409,33 +380,6 @@ void write_back_output_reorg(float output_buffer[Tm][TrxTc], float bias_buffer[M
 	assert((TM_MIN >0)&&(TM_MIN <=Tm));
 	// assert((TR_MIN >0)&&(TR_MIN <=Tr));
 	// assert((TC_MIN >0)&&(TC_MIN <=Tc));
-	uint16_t r, c, TR_MIN, TC_MIN;
-	uint32_t OHxOW;
-	uint16_t ofm_h, ofm_w;
-
-	uint16_t tr,tm,tc;
-
-	if(IsPoolAff){
-		assert(TR_MIN%2==0);
-		assert(TC_MIN%2==0);		
-		r = r_r/2; c = c_r/2; TR_MIN = TR_MIN_r/2; TC_MIN = TC_MIN_r/2;
-		ofm_h = ofm_h_r/2; ofm_w = ofm_w_r/2;
-		OHxOW = OHxOW_r/4;
-	}else
-	{
-		r = r_r; c = c_r; TR_MIN = TR_MIN_r; TC_MIN = TC_MIN_r;
-		ofm_h = ofm_h_r; ofm_w = ofm_w_r;
-		OHxOW = OHxOW_r;	
-	}
-
-	// for( tm=0; tm <   TM_MIN; tm++)
-	// for( tr=0; tr < TR_MIN_r; tr++)
-	// for( tc=0; tc < TC_MIN_r; tc++)
-	// {
-	// 	output_buffer[tm][tr*TC_MIN_r + tc] = postproc(output_buffer[tm][tr*TC_MIN_r + tc], bias_buffer[m+tm], IsBias, IsNL);
-	// }	
-
-	aff_maxpool_2x2s2(output_buffer, TC_MIN_r, TR_MIN, TC_MIN, IsPoolAff);	
 
 	uint32_t offset = m*OHxOW + r*ofm_w + c;
 
@@ -461,6 +405,7 @@ void write_back_output_reorg(float output_buffer[Tm][TrxTc], float bias_buffer[M
 
 	uint32_t Tcomb_TC = T1_MIN*T2_MIN;
 
+	uint16_t tr,tm,tc;
 	uint16_t t1, t2;
 
 	t1 = 0; t2 = 0;
@@ -493,7 +438,6 @@ DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=T12MINmax)
 DO_PRAGMA(HLS LOOP_TRIPCOUNT min=1 max=OFM_BLmax)
 #pragma HLS PIPELINE II=1		
 			float tmp_out = postproc(output_buffer[tm][tr*TC_MIN + tc], bias_buffer[m+tm], IsBias, IsNL);
-			// float tmp_out = output_buffer[tm][tr*TC_MIN + tc];
 
 			tc++;
 			if(tc==TC_MIN){
@@ -795,7 +739,7 @@ void load_compute_wrapper(float *ifm, float *weight, float ofm_buffer[Tm][TrxTc]
 void YOLO2_FPGA(float *Input,float *Output,float *Weight,float *Beta, int IFM_num, int OFM_num,
 							   int Ksize, int Kstride, int Input_w, int Input_h, int Output_w, int Output_h, int Padding, bool IsNL,
 							   int TM, int TN, int TR, int TC,
-							   int32_t NToy, int32_t NTox, int32_t NTof, int32_t NTcomb, int32_t NTif, uint8_t lmode, int32_t NTcomb_l, int LayerType, bool IsPoolAff)
+							   int32_t NToy, int32_t NTox, int32_t NTof, int32_t NTcomb, int32_t NTif, uint8_t lmode, int32_t NTcomb_l, int LayerType)
 {
 	assert((OFM_num > 0)&&(OFM_num <= 2048));
 	assert((IFM_num > 0)&&(IFM_num <= 2048));
@@ -865,14 +809,14 @@ void YOLO2_FPGA(float *Input,float *Output,float *Weight,float *Beta, int IFM_nu
 				Padding, LayerType, IHxIW, KxK, IFM_numxKxK, TM, TN, TR, TC, tm_r, tr_r, tc_r,
 				tx_n10, TX_MIN_n10, pp, in_flag, proc_flag, IsBias, NTif, lmode, lc_enable, r_init_en, c_init_en);
 
-			write_back_output_reorg( ofm_buffer1, bias_buffer, Output, tx_n11[1], tx_n11[2], tx_n11[0], OFM_num, Output_h, Output_w, TX_MIN_n11[0], TX_MIN_n11[1], TX_MIN_n11[2], OHxOW, IsNL, IsBias, out_flag, IsPoolAff);
+			write_back_output_reorg( ofm_buffer1, bias_buffer, Output, tx_n11[1], tx_n11[2], tx_n11[0], OFM_num, Output_h, Output_w, TX_MIN_n11[0], TX_MIN_n11[1], TX_MIN_n11[2], OHxOW, IsNL, IsBias, out_flag);
 			pp = 0;
 		}else{
 			load_compute_wrapper(Input, Weight, ofm_buffer1, Ksize, Kstride, IFM_num, Input_w, Input_h, OFM_num, Output_h, Output_w,
 				Padding, LayerType, IHxIW, KxK, IFM_numxKxK, TM, TN, TR, TC, tm_r, tr_r, tc_r,
 				tx_n11, TX_MIN_n11, pp, in_flag, proc_flag, IsBias, NTif, lmode, lc_enable, r_init_en, c_init_en);	
 
-			write_back_output_reorg( ofm_buffer0, bias_buffer, Output, tx_n10[1], tx_n10[2], tx_n10[0], OFM_num, Output_h, Output_w, TX_MIN_n10[0], TX_MIN_n10[1], TX_MIN_n10[2], OHxOW, IsNL, IsBias, out_flag, IsPoolAff);
+			write_back_output_reorg( ofm_buffer0, bias_buffer, Output, tx_n10[1], tx_n10[2], tx_n10[0], OFM_num, Output_h, Output_w, TX_MIN_n10[0], TX_MIN_n10[1], TX_MIN_n10[2], OHxOW, IsNL, IsBias, out_flag);
 			pp = 1;
 		}
 
@@ -891,8 +835,8 @@ void YOLO2_FPGA(float *Input,float *Output,float *Weight,float *Beta, int IFM_nu
 	}
 }
 
-// #define MEM_LEN (416*416*32+208*208*32)
-void generate_iofm_offset(float* in_ptr[32], float* out_ptr[32], float *Memory_buf, network *net, const int MEM_LEN)
+#define MEM_LEN (416*416*32+208*208*32)
+void generate_iofm_offset(float* in_ptr[32], float* out_ptr[32], float *Memory_buf, network *net)
 {
 #define ROUTE16_LEN (26*26*512)
 #define CONV27_LEN (13*13*256)
@@ -900,44 +844,8 @@ void generate_iofm_offset(float* in_ptr[32], float* out_ptr[32], float *Memory_b
 
 	float *Memory_top = Memory_buf;
 	float *Memory_bottom = Memory_top + MEM_LEN;
-	int x, out_w;
-
-	x = 0;
-	in_ptr[x] = Memory_top;
-	out_ptr[x] = Memory_bottom - net->layers[x+1].out_c *  net->layers[x+1].out_h * net->layers[x+1].out_w;//aff_max
-	x = 2;
-	in_ptr[x] = out_ptr[0];
-	out_ptr[x] = Memory_top;//aff_max
-
-	for(x=4;x<6;x++)
-	{
-		int out_w = net->layers[x].out_w;
-		if(x%2==0)
-		{
-			in_ptr[x] = Memory_top;
-			out_ptr[x] = Memory_bottom - net->layers[x].out_c *  net->layers[x].out_h * out_w;
-		}
-		else
-		{
-			in_ptr[x] = out_ptr[x-1];
-			out_ptr[x] = Memory_top;
-		}
-	}
-
-	x = 6;
-	in_ptr[x] = Memory_top;
-	out_ptr[x] = Memory_bottom - net->layers[x+1].out_c *  net->layers[x+1].out_h * net->layers[x+1].out_w;//aff_max
-	x = 8;
-	in_ptr[x] = out_ptr[6];
-	out_ptr[x] = Memory_top;
-	x = 9;
-	in_ptr[x] = Memory_top;
-	out_ptr[x] = Memory_bottom - net->layers[x].out_c *  net->layers[x].out_h * net->layers[x].out_w;
-	x = 10;
-	in_ptr[x] = out_ptr[9];
-	out_ptr[x] = Memory_top;//aff_max
-
-	for(x=12;x<18;x++)
+	int x;
+	for(x=0;x<18;x++)
 	{
 		int out_w = net->layers[x].out_w;
 		if(x%2==0)
@@ -980,60 +888,6 @@ void generate_iofm_offset(float* in_ptr[32], float* out_ptr[32], float *Memory_b
 
 	in_ptr[31] = out_ptr[30];
 }
-
-// // #define MEM_LEN (416*416*32+208*208*32)
-// void generate_iofm_offset(float* in_ptr[32], float* out_ptr[32], float *Memory_buf, network *net, const int MEM_LEN)
-// {
-// #define ROUTE16_LEN (26*26*512)
-// #define CONV27_LEN (13*13*256)
-// #define CONV24_LEN (13*13*1024)
-
-// 	float *Memory_top = Memory_buf;
-// 	float *Memory_bottom = Memory_top + MEM_LEN;
-// 	int x;
-// 	for(x=0;x<18;x++)
-// 	{
-// 		int out_w = net->layers[x].out_w;
-// 		if(x%2==0)
-// 		{
-// 			in_ptr[x] = Memory_top;
-// 			out_ptr[x] = Memory_bottom - net->layers[x].out_c *  net->layers[x].out_h * out_w;
-// 		}
-// 		else
-// 		{
-// 			in_ptr[x] = out_ptr[x-1];
-// 			out_ptr[x] = Memory_top;
-// 		}
-// 	}
-
-// 	for(x=18;x<25;x++)
-// 	{
-// 		int out_w = net->layers[x].out_w;
-// 		if(x%2==0)
-// 		{
-// 			in_ptr[x] = Memory_top;
-// 			out_ptr[x] = Memory_bottom - ROUTE16_LEN - net->layers[x].out_c *  net->layers[x].out_h * out_w;
-// 		}else
-// 		{
-// 			in_ptr[x] = out_ptr[x-1];
-// 			out_ptr[x] = Memory_top;
-// 		}
-// 	}
-
-// 	in_ptr[26] = Memory_bottom - ROUTE16_LEN;
-// 	out_ptr[26] = Memory_top;
-
-// 	in_ptr[27] = Memory_top;
-// 	out_ptr[27] = Memory_bottom - ROUTE16_LEN - CONV24_LEN - CONV27_LEN;
-
-// 	in_ptr[29] = out_ptr[27];
-// 	out_ptr[29] = Memory_top;
-
-// 	in_ptr[30] = Memory_top;
-// 	out_ptr[30] = Memory_bottom - net->layers[30].outputs;
-
-// 	in_ptr[31] = out_ptr[30];
-// }
 
 void reorg_cpu(float *x, int w, int h, int c, int stride, float *out)
 {
@@ -1083,13 +937,11 @@ void yolov2_hls_ps(network *net, float *input)
 	float *region_buf = (float *)calloc(13*13*425, sizeof(float));
 	float *tmp_ptr = NULL;
 
-	const int MEM_LEN = (104*104*64+208*208*32);
-	// const int MEM_LEN = (416*416*32+208*208*32);
+//leave some memories for overflow, because the load_module will load extra pixels near boundary for padding
 	float *Memory_buf = (float*)calloc(MEM_LEN,sizeof(float));
 	float* in_ptr[32];
 	float* out_ptr[32];
-	// generate_iofm_offset( in_ptr, out_ptr, Memory_buf, net);
-	generate_iofm_offset( in_ptr, out_ptr, Memory_buf, net, MEM_LEN);
+	generate_iofm_offset( in_ptr, out_ptr, Memory_buf, net);
 
 	memcpy(in_ptr[0], input, 416*416*3*sizeof(float));//416x416x3 input_pic
 
@@ -1103,10 +955,9 @@ void yolov2_hls_ps(network *net, float *input)
 	int NToy, NTox, NTof, NTcomb, NTif;
 	uint8_t lmode;
 	int NTcomb_l;
-	bool IsPoolAff;
 
     for(uint16_t i = 0; i < net->n; ++i)
-	{
+	{		
         layer l = net->layers[i];
 		printf("Layer[%2d]: ",i);
 		switch(l.type)
@@ -1127,20 +978,6 @@ void yolov2_hls_ps(network *net, float *input)
 				TR = MIN(((IB_HxW/TCol-l.size)/l.stride+1),output_h);//keep Kernel_stride>=1
 				TR = MIN(TR, TrxTc/TC);
 				TRow = (TR-1)*l.stride + l.size;
-
-				if((i == 0) || (i == 2) || (i == 6) || (i == 10))
-					IsPoolAff = 1;
-				else
-					IsPoolAff = 0;
-				// IsPoolAff = 0;
-
-				if(IsPoolAff){
-					if(TR & 0x1)
-						TR = TR -1;
-					assert((TC%2)==0);
-					assert(((TR%2)==0)&&(TR > 0));
-				}
-				printf("TR=%d, TC=%d, output_h=%d, output_w=%d\n", TR, TC, output_h, output_w);
 
 				// assert(((TR*TC)>0)&&((TR*TC)<=TrxTc));
 				// assert(((TRow*TCol)>0)&&((TRow*TCol)<=IB_HxW));
@@ -1166,7 +1003,7 @@ void yolov2_hls_ps(network *net, float *input)
 				YOLO2_FPGA(in_ptr[i],out_ptr[i],Weight_buf+woffset,Beta_buf+boffset,
 					l.c,l.n,l.size,
 					l.stride,l.w,l.h,output_w, output_h, l.pad,l.activation==LEAKY?1:0,
-					TM,TN,TR,TC, NToy, NTox, NTof, NTcomb, NTif, lmode, NTcomb_l, 0, IsPoolAff);
+					TM,TN,TR,TC, NToy, NTox, NTof, NTcomb, NTif, lmode, NTcomb_l, 0);
 
 				woffset += weight_offset[offset_index];
 				boffset += beta_offset[offset_index];
@@ -1177,11 +1014,6 @@ void yolov2_hls_ps(network *net, float *input)
 				printf("outputMemory:%8d;max          %d x %d / %d  %4d x%4d x%4d   ->  %4d x%4d x%4d\n",l.outputs, l.size, l.size, l.stride, l.w, l.h, l.c, l.out_w, l.out_h, l.out_c);
 				//output_w = (l.w - l.size)/l.stride + 1 ;
 				//output_h = (l.h - l.size)/l.stride + 1 ;
-
-				if((i == 1) || (i == 3) || (i == 7) || (i == 11))//skip affiliated layers
-					break;
-				printf("Here, only for [17]max\n");
-
 				output_w = l.out_h;
 				output_h = l.out_w;
 
@@ -1219,7 +1051,7 @@ void yolov2_hls_ps(network *net, float *input)
 
 				YOLO2_FPGA(in_ptr[i],out_ptr[i],NULL,NULL,l.c,l.c,
 					l.size,l.stride,l.w,l.h, output_w, output_h, l.pad,0,TM,0,TR,TC, 
-					NToy, NTox, NTof, NTcomb, NTif, lmode, NTcomb_l, 1, 0);
+					NToy, NTox, NTof, NTcomb, NTif, lmode, NTcomb_l, 1);
 
 				break;
 			case REORG:
