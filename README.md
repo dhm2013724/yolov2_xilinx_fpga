@@ -81,8 +81,8 @@ EdgeBoard(ZU3EG): 1.2GHz A53 4 cores + 4GiB DDR4 + FPGA
 |  ---   |  ---   |        ---   |        ---               |---     | ---     | ---      |  ---      | ---      |---   |
 | A |FT32       |             3.0| 4/28/26/32/3/3             | 259(72%) | 90.5(42%)  | 31983(45%) | 57683(41%)  |	200        |EdgeBoard(ZU3EG)| 
 
-| Performance              |        |
-|  ---                     | ---    |
+|ID                       | A      |
+|---|---|
 |CNN models	               |YOLO v2 |
 |Board                     | ZU3EG  |
 |Acc-Clock(MHz)            |  200   |
