@@ -153,7 +153,10 @@ void yolov2_hls_ps(network *net, float *input)
 //				TR = MIN(output_h,TR);
 //				TC = MIN(((OnChipIB_Width-l.size)/l.stride+1),Tc);
 //				TC = MIN(output_w,TC);
-				TC = MIN(((IB_HxW-l.size)/l.stride+1),output_w);
+
+				assert((IB_HxW/l.size)>=l.size);
+				TC = MIN(((IB_HxW/l.size-l.size)/l.stride+1),output_w);
+				TC = MIN(TrxTc, TC);
 				TCol = (TC-1)*l.stride + l.size;
 				TR = MIN(((IB_HxW/TCol-l.size)/l.stride+1),output_h);//keep Kernel_stride>=1
 				TR = MIN(TR, TrxTc/TC);
@@ -197,7 +200,10 @@ void yolov2_hls_ps(network *net, float *input)
 //				TC = MIN(((OnChipIB_Width-l.size)/l.stride+1),Tc);
 //				TR = MIN(output_h,TR);
 //				TC = MIN(output_w,TC);
-				TC = MIN(((IB_HxW-l.size)/l.stride+1),output_w);
+
+				assert((IB_HxW/l.size)>=l.size);
+				TC = MIN(((IB_HxW/l.size-l.size)/l.stride+1),output_w);
+				TC = MIN(TrxTc, TC);
 				TCol = (TC-1)*l.stride + l.size;
 				TR = MIN(((IB_HxW/TCol-l.size)/l.stride+1),output_h);//keep Kernel_stride>=1
 				TR = MIN(TR, TrxTc/TC);

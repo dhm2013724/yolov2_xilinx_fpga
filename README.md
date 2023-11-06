@@ -69,6 +69,31 @@ The performance comparison in the two cases is shown in the following table:
 |Performance(GOP/s)	       |25.98   |30.15   | 36.13  |  6.63  |11.81| 13.08|
 |Power Efficiency(GOP/s/W) | 4.20   | 6.02   | ?      | ?      |?    | ?|
 
+# New Evaulation
+just further test existed design, and given more details for other researchs. (2023.11.06) Vivado, Vivado HLS 2019.2.
+Linux app compiled with -static -lm, in release mode -O2 opt.
+
+Platform: 
+
+EdgeBoard(ZU3EG): 1.2GHz A53 4 cores + 4GiB DDR4 + FPGA
+
+| ID |  DataType | hls_target_clk |Tn/Tm/Tr/Tc/II_CONV/II_POOL | DSP      | BRAM      | LUT        |  FF         | Freq (MHz) | Dev    |
+|  ---   |  ---   |        ---   |        ---               |---     | ---     | ---      |  ---      | ---      |---   |
+| A |FT32       |             3.0| 4/28/26/32/3/3             | 259(72%) | 90.5(42%)  | 31983(45%) | 57683(41%)  |	200        |EdgeBoard(ZU3EG)| 
+
+| Performance              |        |
+|  ---                     | ---    |
+|CNN models	               |YOLO v2 |
+|Board                     | ZU3EG  |
+|Acc-Clock(MHz)            |  200   |
+|Precision	               |  FT32  |
+|Power (cpu idle + static fpga + dynamic cpu & fpga, W) | 6.63 + 0.55 + 1.82|
+|Operations (GOP)          |29.472  |
+|Latency* (s)              | 2.255  |
+|Performance(GOP/s)	       |13.069  |
+|Power Efficiency(GOP/s/W) | 5.514  |
+*Latency did not include post-process stage (e.g., the last region layer and image saving procedure) in CPU. Power Efficiency only evaluates the static + dynamic power in FPGA & CPU. CPU power could be further improved to close useless module and bus.
+
 # Result  
 ![image1](https://github.com/dhm2013724/yolov2_xilinx_fpga/blob/150MHzTn4Tm32Tr26Tc26Cin4Cout2/pynq/result2.jpg)
 
