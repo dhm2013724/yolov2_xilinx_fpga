@@ -26,6 +26,13 @@ unsigned long get_file_size(const char *filename)
     return (unsigned long)buf.st_size;  
 }
 
+const uint32_t IB_W = OnChipIB_Width;
+const uint32_t IB_H = OnChipIB_Height;
+const uint32_t IB_HxW = IB_H*IB_W;
+// const uint32_t TnxIB_H = Tn*IB_H;	
+// const uint32_t TnxIB_HxIB_W = Tn*IB_H*IB_W;
+const uint32_t TrxTc = Tr*Tc;
+
 void input_load(float *input,float input_buffer[Tn][OnChipIB_Height][OnChipIB_Width],int r,int c,int n,int Kstride,int Padding,int TRow,int TCol,int Input_w,int Input_h,int TN_MIN,int IHxIW,int LayerType)
 {
 	static float local_buf[OnChipIB_Width];
@@ -212,8 +219,11 @@ void YOLO2_FPGA(float *Input,float *Output,float *Weight,float *Beta, int IFM_nu
 	assert((Padding >= 0)&&(Padding <= 4));//maybe
 	assert((TM > 0)&&(TM <= Tm));
 	assert((TN >= 0)&&(TN <= Tn));
-	assert((TR > 0)&&(TR <= Tr));
-	assert((TC > 0)&&(TC <= Tc));
+	// assert((TR > 0)&&(TR <= Tr));
+	// assert((TC > 0)&&(TC <= Tc));
+	assert(TR > 0);
+	assert(TC > 0);	
+	assert((TR*TC)<=(Tr*Tc));	
 
 	const int OHxOW = Output_h*Output_w;
 	const int TRow = (TR-1)*Kstride+Ksize;
@@ -418,6 +428,7 @@ void yolov2_hls_ps(network *net, float *input)
 	int woffset = 0;
 	int boffset = 0;
 	int TR,TC,TM,TN;
+	int TRow, TCol;
 	int output_w,output_h;
 	int mLoops;
 
@@ -434,10 +445,23 @@ void yolov2_hls_ps(network *net, float *input)
 				output_w = (l.w - l.size + 2*l.pad)/l.stride + 1;
 				output_h = (l.h - l.size + 2*l.pad)/l.stride + 1;
 
+				// assert((IB_HxW/l.size)>=l.size);
+				// TC = MIN(((IB_HxW/l.size-l.size)/l.stride+1),output_w);
+				// TC = MIN(TrxTc, TC);
+				// TCol = (TC-1)*l.stride + l.size;
+				// TR = MIN(((IB_HxW/TCol-l.size)/l.stride+1),output_h);//keep Kernel_stride>=1
+				// TR = MIN(TR, TrxTc/TC);
+				// TRow = (TR-1)*l.stride + l.size;
+
+				// assert(((TR*TC)>0)&&((TR*TC)<=TrxTc));
+				// assert(((TRow*TCol)>0)&&((TRow*TCol)<=IB_HxW));
+				// printf("TR=%d, TC=%d, TRow=%d, TCol=%d\n", TR, TC, TRow, TCol);				
+
 				TR = MIN(((OnChipIB_Height-l.size)/l.stride+1),Tr);//keep Kstride>=1
 				TR = MIN(output_h,TR);
 				TC = MIN(((OnChipIB_Width-l.size)/l.stride+1),Tc);
 				TC = MIN(output_w,TC);
+
 				TM = MIN(l.n,Tm);
 				TN = MIN(l.c,Tn);
 				mLoops = (int)ceil(((float)l.n)/TM);
@@ -465,6 +489,19 @@ void yolov2_hls_ps(network *net, float *input)
 				TC = MIN(((OnChipIB_Width-l.size)/l.stride+1),Tc);
 				TR = MIN(output_h,TR);
 				TC = MIN(output_w,TC);
+
+				// assert((IB_HxW/l.size)>=l.size);
+				// TC = MIN(((IB_HxW/l.size-l.size)/l.stride+1),output_w);
+				// TC = MIN(TrxTc, TC);
+				// TCol = (TC-1)*l.stride + l.size;
+				// TR = MIN(((IB_HxW/TCol-l.size)/l.stride+1),output_h);//keep Kernel_stride>=1
+				// TR = MIN(TR, TrxTc/TC);
+				// TRow = (TR-1)*l.stride + l.size;
+
+				// assert(((TR*TC)>0)&&((TR*TC)<=TrxTc));
+				// assert(((TRow*TCol)>0)&&((TRow*TCol)<=IB_HxW));
+				// printf("TR=%d, TC=%d, TRow=%d, TCol=%d\n", TR, TC, TRow, TCol);									
+
 				TM = MIN(Tm,Tn);
 				TM = MIN(l.c,TM);
 				mLoops = (int)ceil(((float)l.c)/TM);

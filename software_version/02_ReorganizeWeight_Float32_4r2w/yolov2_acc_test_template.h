@@ -1036,11 +1036,23 @@ void yolov2_hls_ps(network *net, float *input)
 				// TC = MIN(((OnChipIB_Width-l.size)/l.stride+1),Tc);
 				// TC = MIN(output_w,TC);
 
-				TC = MIN(((IB_HxW-l.size)/l.stride+1),output_w);
+				// TC = MIN(((IB_HxW-l.size)/l.stride+1),output_w);
+				// TCol = (TC-1)*l.stride + l.size;
+				// TR = MIN(((IB_HxW/TCol-l.size)/l.stride+1),output_h);//keep Kernel_stride>=1
+				// TR = MIN(TR, TrxTc/TC);
+				// TRow = (TR-1)*l.stride + l.size;
+
+				assert((IB_HxW/l.size)>=l.size);
+				TC = MIN(((IB_HxW/l.size-l.size)/l.stride+1),output_w);
+				TC = MIN(TrxTc, TC);
 				TCol = (TC-1)*l.stride + l.size;
 				TR = MIN(((IB_HxW/TCol-l.size)/l.stride+1),output_h);//keep Kernel_stride>=1
 				TR = MIN(TR, TrxTc/TC);
 				TRow = (TR-1)*l.stride + l.size;
+
+				assert(((TR*TC)>0)&&((TR*TC)<=TrxTc));
+				assert(((TRow*TCol)>0)&&((TRow*TCol)<=IB_HxW));
+				printf("TR=%d, TC=%d, TRow=%d, TCol=%d\n", TR, TC, TRow, TCol);					
 
 				// assert(((TR*TC)>0)&&((TR*TC)<=TrxTc));
 				// assert(((TRow*TCol)>0)&&((TRow*TCol)<=IB_HxW));
@@ -1085,11 +1097,23 @@ void yolov2_hls_ps(network *net, float *input)
 				// TR = MIN(output_h,TR);
 				// TC = MIN(output_w,TC);
 
-				TC = MIN(((IB_HxW-l.size)/l.stride+1),output_w);
+				// TC = MIN(((IB_HxW-l.size)/l.stride+1),output_w);
+				// TCol = (TC-1)*l.stride + l.size;
+				// TR = MIN(((IB_HxW/TCol-l.size)/l.stride+1),output_h);//keep Kernel_stride>=1
+				// TR = MIN(TR, TrxTc/TC);
+				// TRow = (TR-1)*l.stride + l.size;
+
+				assert((IB_HxW/l.size)>=l.size);
+				TC = MIN(((IB_HxW/l.size-l.size)/l.stride+1),output_w);
+				TC = MIN(TrxTc, TC);
 				TCol = (TC-1)*l.stride + l.size;
 				TR = MIN(((IB_HxW/TCol-l.size)/l.stride+1),output_h);//keep Kernel_stride>=1
 				TR = MIN(TR, TrxTc/TC);
 				TRow = (TR-1)*l.stride + l.size;
+
+				assert(((TR*TC)>0)&&((TR*TC)<=TrxTc));
+				assert(((TRow*TCol)>0)&&((TRow*TCol)<=IB_HxW));
+				printf("TR=%d, TC=%d, TRow=%d, TCol=%d\n", TR, TC, TRow, TCol);					
 				
 				// assert(((TR*TC)>0)&&((TR*TC)<=TrxTc));
 				// assert(((TRow*TCol)>0)&&((TRow*TCol)<=IB_HxW));

@@ -77,21 +77,27 @@ Platform:
 
 EdgeBoard(ZU3EG): 1.2GHz A53 4 cores + 4GiB DDR4 + FPGA
 
-| ID |  DataType | hls_target_clk |Tn/Tm/Tr/Tc/II_CONV/II_POOL | DSP      | BRAM      | LUT        |  FF         | Freq (MHz) | Dev    |
-|  ---   |  ---   |        ---   |        ---               |---     | ---     | ---      |  ---      | ---      |---   |
-| A |FT32       |             3.0| 4/28/26/32/3/3             | 259(72%) | 90.5(42%)  | 31983(45%) | 57683(41%)  |	200        |EdgeBoard(ZU3EG)| 
+| ID |  DataType | hls_target_clk |Tn/Tm/Tr/Tc/II_CONV/II_POOL/PP_I+W,O | DSP      | BRAM      | LUT        |  FF         | Freq (MHz) | Dev    | ref repo|
+|  ---   |  ---   |        ---   |        ---               |---     | ---     | ---      |  ---      | ---      |---   | ---|
+| A |FT32       |             3.0| 4/28/26/32/3/3/1+1,1     | 259(72%) | 90.5(42%)  | 31983(45%) | 57683(41%)  |	200        |EdgeBoard(ZU3EG)| 02_FT32| 
+| B |FT32       |             3.0| 4/28/26/32/3/3/4&4,2     | 334(93%) | 109.0(50%)  | 44855(64%) | 78699(56%)  |	190        |EdgeBoard(ZU3EG)| 02_FT32_mp_r4w2|
 
-|ID                       | A      |
-|---|---|
-|CNN models	               |YOLO v2 |
-|Board                     | ZU3EG  |
-|Acc-Clock(MHz)            |  200   |
-|Precision	               |  FT32  |
-|Power (cpu idle + static fpga + dynamic cpu & fpga, W) | 6.63 + 0.55 + 1.82|
-|Operations (GOP)          |29.472  |
-|Latency* (s)              | 2.255  |
-|Performance(GOP/s)	       |13.069  |
-|Power Efficiency(GOP/s/W) | 5.514  |
+*PP_I+W,O, means that parallel data ports in accelerator interface; In Design A, [1+1,1] represents that ifm and weight own independent port (+ means or). 
+In Design B, [4&4, 2] represents that ifm and weight buffers share same 4 ports, and ofm buffers own 2 concurrent write-back ports.
+
+
+|ID                       | A      | B |
+|---|---|---|
+|CNN models	               |YOLO v2 |YOLO v2 |
+|Board                     | ZU3EG  | ZU3EG  |
+|Acc-Clock(MHz)            |  200   | 190 |
+|Precision	               |  FT32  |  FT32  |
+|Power (cpu idle + static fpga + dynamic cpu & fpga, W) | 6.63 + 0.55 + 1.82| 6.63 + 0.70 + 2.23|
+|Operations (GOP)          |29.472  |29.472  |
+|Latency* (s)              | 2.255  |1.801|
+|Performance(GOP/s)	       |13.069  |16.364|
+|Power Efficiency(GOP/s/W) | 5.514  |5.585|
+
 *Latency did not include post-process stage (e.g., the last region layer and image saving procedure) in CPU. Power Efficiency only evaluates the static + dynamic power in FPGA & CPU. CPU power could be further improved to close useless module and bus.
 
 # Result  
