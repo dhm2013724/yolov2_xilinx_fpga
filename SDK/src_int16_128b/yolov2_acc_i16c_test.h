@@ -313,15 +313,25 @@ void yolov2_hls_ps(network *net, float *input)
 			uint16_t ofm_w = l.out_w;
 			uint16_t ofm_h = l.out_h;
 
+			// uint16_t TR,TC,TM,TN;
+			// TC = MIN_diy(((IB_HxW-kernel_size)/kernel_stride+1),ofm_w);
+			// uint16_t TCol = (TC-1)*kernel_stride + kernel_size;
+			// TR = MIN_diy(((IB_HxW/TCol-kernel_size)/kernel_stride+1),ofm_h);//keep Kernel_stride>=1
+			// TR = MIN_diy(TR, TrxTc/TC);
+			// uint16_t TRow = (TR-1)*kernel_stride + kernel_size;
+			// assert(((TR*TC)>0)&&((TR*TC)<=TrxTc));
+			// assert(((TRow*TCol)>0)&&((TRow*TCol)<=IB_HxW));
+			// // printf("TR=%d, TC=%d, TRow=%d, TCol=%d\n", TR, TC, TRow, TCol);
+
 			uint16_t TR,TC,TM,TN;
-			TC = MIN_diy(((IB_HxW-kernel_size)/kernel_stride+1),ofm_w);
-			uint16_t TCol = (TC-1)*kernel_stride + kernel_size;
-			TR = MIN_diy(((IB_HxW/TCol-kernel_size)/kernel_stride+1),ofm_h);//keep Kernel_stride>=1
+			uint16_t TRow, TCol;
+			assert((IB_HxW/l.size)>=l.size);
+			TC = MIN_diy(((IB_HxW/l.size-l.size)/l.stride+1),ofm_w);
+			TC = MIN_diy(TrxTc, TC);
+			TCol = (TC-1)*l.stride + l.size;
+			TR = MIN_diy(((IB_HxW/TCol-l.size)/l.stride+1),ofm_h);//keep Kernel_stride>=1
 			TR = MIN_diy(TR, TrxTc/TC);
-			uint16_t TRow = (TR-1)*kernel_stride + kernel_size;
-			assert(((TR*TC)>0)&&((TR*TC)<=TrxTc));
-			assert(((TRow*TCol)>0)&&((TRow*TCol)<=IB_HxW));
-			// printf("TR=%d, TC=%d, TRow=%d, TCol=%d\n", TR, TC, TRow, TCol);			
+			TRow = (TR-1)*l.stride + l.size;						
 
 			TM = MIN_diy(ofm_num,Tm);
 			TN = MIN_diy(ifm_num,Tn);
