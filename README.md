@@ -44,7 +44,7 @@ The acceleration strategy of convolutional layer is similar to [5][6], which uti
 ## Ping-Pong operation  
 Similar to [8], the design implements ping-pong buffers to overlap the delay of reading input feature maps and weights, writing output feature maps and calculation, which greatly improves the dynamic utilization of the computing engines.  
 
-# Evaulate  
+# Evaluation  
 Experiments show that floating point addition in HLS requires three DSP resources, floating point multiplication requires two DSPs; fixed point 16-bit multiplication requires one DSP, and fixed-point 16-bit addition can be implemented only using LUT. After placing and routing, resource consumptions of fixed-16 (Tn=2, Tm=32, Tr=26, Tc=26) are shown as follows:     
 
   |  Resource     |  DSP      | BRAM      | LUT        |  FF        | Freq   | Dev    |
@@ -69,7 +69,7 @@ The performance comparison in the two cases is shown in the following table:
 |Performance(GOP/s)	       |25.98   |30.15   | 36.13  |  6.63  |11.81| 13.08|
 |Power Efficiency(GOP/s/W) | 4.20   | 6.02   | ?      | ?      |?    | ?|
 
-# New Evaulation
+# New Evaluation
 just further test existed design, and given more details for other researchs. (2023.11.06) Vivado, Vivado HLS 2019.2.
 Linux app compiled with -static -lm, in release mode -O2 opt.
 
@@ -81,24 +81,25 @@ EdgeBoard(ZU3EG): 1.2GHz A53 4 cores + 4GiB DDR4 + FPGA
 |  ---   |  ---   |        ---   |        ---               |---     | ---     | ---      |  ---      | ---      |---   | ---|
 | A |FT32       |             3.0| 4/28/26/32/3/3/1+1,1     | 259(72%) | 90.5(42%)   | 31983(45%) | 57683(41%)  |	200        |EdgeBoard(ZU3EG)| 02_FT32| 
 | B |FT32       |             3.0| 4/36/26/32/3/3/4&4,2     | 334(93%) | 109.0(50%)  | 44855(64%) | 78699(56%)  |	190        |EdgeBoard(ZU3EG)| 02_FT32_mp_r4w2|
-| C |INT16      |             3.0| 8/24/26/26/1/1/1&1,1     | 253(70%) |  88.0(41%)  | 50447(71%) | 25249(18%)  |	190        |EdgeBoard(ZU3EG)| 02_INT16_128b|
+| C |INT16      |             3.0| 8/24/26/26/1/2/1&1,1     | 253(70%) |  88.0(41%)  | 50447(71%) | 25249(18%)  |	190        |EdgeBoard(ZU3EG)| 02_INT16_128b|
+| D |INT16      |             3.0| 8/24/26/26/1/2/1+1,1     | 253(70%) |  90.0(42%)  | 51296(73%) | 27005(19%)  |	190        |EdgeBoard(ZU3EG)| 02_INT16_128b|
 
 *PP_I+W,O, means that parallel data ports in accelerator interface; In Design A, [1+1,1] represents that ifm and weight own independent port (+ means or). 
 In Design B, [4&4, 2] represents that ifm and weight buffers share same 4 ports, and ofm buffers own 2 concurrent write-back ports.
 
 
-|ID                       | A      | B | C|
-|---|---|---|---|
-|CNN models	               |YOLO v2 |YOLO v2 |YOLO v2 |
-|Board                     | ZU3EG  | ZU3EG  | ZU3EG  |
-|Acc-Clock(MHz)            |  200   | 190 | 190 |
-|current/available Bit_DataBus (bit)  |   32/128   |  32/128  |  128/128  |
-|Precision	               |  FT32  |  FT32  |  INT16  |
-|Power (cpu idle + static fpga + dynamic cpu & fpga, W) | 6.63 + 0.55 + 1.82| 6.63 + 0.70 + 2.23| 6.63 + 0.27 + 0.77|
-|Operations (GOP)          |29.472  |29.472  |29.472  |
-|Latency* (s)              | 2.255  |1.801| 0.475|
-|Performance(GOP/s)	       |13.069  |16.364|62.020|
-|Power Efficiency(GOP/s/W) | 5.514  |5.585|59.634|
+|ID                       | A      | B | C| D|
+|---|---|---|---|---|
+|CNN models	               |YOLO v2 |YOLO v2 |YOLO v2 |YOLO v2 |
+|Board                     | ZU3EG  | ZU3EG  | ZU3EG  | ZU3EG  |
+|Acc-Clock(MHz)            |  200   | 190 | 190 | 190 |
+|current/available Bit_DataBus (bit)  |   32/128   |  32/128  |  128/128  |  128/128  |
+|Precision	               |  FT32  |  FT32  |  INT16  |  INT16  |
+|Power (cpu idle + static fpga + dynamic cpu & fpga, W) | 6.63 + 0.55 + 1.82| 6.63 + 0.70 + 2.23| 6.63 + 0.27 + 0.77| 6.63 + 0.30 + 1.07|
+|Operations (GOP)          |29.472  |29.472  |29.472  |29.472  |
+|Latency* (s)              | 2.255  |1.801| 0.475| 0.469|
+|Performance(GOP/s)	       |13.069  |16.364|62.020|62.840|
+|Power Efficiency(GOP/s/W) | 5.514  |5.585|59.634|45.868|
 
 *Latency did not include post-process stage (e.g., the last region layer and image saving procedure) in CPU. Power Efficiency only evaluates the static + dynamic power in FPGA & CPU. CPU power could be further improved to close useless module and bus.
 
